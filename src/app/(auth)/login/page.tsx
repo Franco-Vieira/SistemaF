@@ -27,8 +27,11 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/home')
+    // CORREÇÃO CRÍTICA: refresh() ANTES do push()
+    // O refresh força o middleware a reler os cookies de sessão
+    // antes de tentar navegar para a rota protegida
     router.refresh()
+    router.push('/home')
   }
 
   return (
