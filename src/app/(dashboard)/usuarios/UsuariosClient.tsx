@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, X, UserCheck, UserX, Trash2 } from 'lucide-react'
+import { Plus, X, UserCheck, UserX, Trash2, Pencil } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { Profile } from '@/types'
 
@@ -13,6 +13,10 @@ export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
   const [usuarios, setUsuarios] = useState(initial)
   const [showModal, setShowModal] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Profile | null>(null)
+  const [editUser, setEditUser] = useState<Profile | null>(null)
+  const [editForm, setEditForm] = useState({ nome: '', email: '', senha: '' })
+  const [loadingEdit, setLoadingEdit] = useState(false)
+  const [erroEdit, setErroEdit] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingId, setLoadingId] = useState('')
   const [erro, setErro] = useState('')
@@ -50,6 +54,34 @@ export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
     })
     if (res.ok) setUsuarios(prev => prev.map(u => u.id === id ? { ...u, ativo: !ativo } : u))
     setLoadingId('')
+  }
+
+  function abrirEdicao(usuario: Profile) {
+    setEditUser(usuario)
+    setEditForm({ nome: usuario.nome, email: usuario.email, senha: '' })
+    setErroEdit('')
+  }
+
+  async function handleEditar(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editUser) return
+    setLoadingEdit(true)
+    setErroEdit('')
+    const payload: any = {}
+    if (editForm.nome !== editUser.nome) payload.nome = editForm.nome
+    if (editForm.email !== editUser.email) payload.email = editForm.email
+    if (editForm.senha) payload.senha = editForm.senha
+
+    const res = await fetch('/api/usuarios', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: editUser.id, ...payload }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setErroEdit(data.error || 'Erro ao atualizar'); setLoadingEdit(false); return }
+    setUsuarios(prev => prev.map(u => u.id === editUser.id ? { ...u, nome: editForm.nome, email: editForm.email } : u))
+    setEditUser(null)
+    setLoadingEdit(false)
   }
 
   async function handleExcluir(usuario: Profile) {
@@ -126,6 +158,13 @@ export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
                         style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
                       >
                         {u.ativo ? <><UserX size={12} /> Desativar</> : <><UserCheck size={12} /> Ativar</>}
+                      </button>
+                      <button
+                        onClick={() => abrirEdicao(u)}
+                        disabled={loadingId === u.id}
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'none', border: '1px solid hsl(43 40% 30%)', borderRadius: '6px', cursor: 'pointer', color: 'hsl(43 72% 58%)' }}
+                      >
+                        <Pencil size={12} />
                       </button>
                       <button
                         onClick={() => setConfirmDelete(u)}
