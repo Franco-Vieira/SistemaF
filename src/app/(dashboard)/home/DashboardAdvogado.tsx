@@ -68,8 +68,8 @@ export default function DashboardAdvogado({ profile, totalRecebido, pagamentos }
               <tbody>
                 {pagamentos.map((p: any) => (
                   <tr
-                    key={p.lancamento_id}
-                    onClick={() => router.push(`/lancamentos/${p.lancamento_id}`)}
+                    key={p.id}
+                    onClick={() => router.push(`/lancamentos/${p.id}`)}
                     style={{ cursor: 'pointer' }}
                   >
                     <td style={{ fontSize: '0.8rem', color: 'hsl(45 8% 55%)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
