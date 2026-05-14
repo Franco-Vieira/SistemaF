@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus, X, UserCheck, UserX, Trash2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { Profile } from '@/types'
@@ -8,6 +9,7 @@ import type { Profile } from '@/types'
 interface Props { usuarios: Profile[]; adminId: string }
 
 export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
+  const router = useRouter()
   const [usuarios, setUsuarios] = useState(initial)
   const [showModal, setShowModal] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Profile | null>(null)
@@ -71,7 +73,7 @@ export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
           <h1 className="font-display" style={{ fontSize: '1.6rem', fontWeight: '600', color: 'hsl(45 20% 92%)' }}>Usuários</h1>
           <p style={{ color: 'hsl(45 8% 45%)', fontSize: '0.8rem', marginTop: '0.2rem' }}>{usuarios.length} usuário{usuarios.length !== 1 ? 's' : ''} no sistema</p>
         </div>
-        <button className="btn-gold" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <button className="btn-gold" onClick={() => router.push('/usuarios/novo')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <Plus size={15} /> Novo Usuário
         </button>
       </div>
@@ -144,7 +146,7 @@ export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
       {/* Modal novo usuário */}
       {showModal && (
         <div className="modal-overlay">
-          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '460px', maxHeight: '90dvh', overflowY: 'auto', borderColor: 'hsl(43 30% 22%)' }}>
+          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '460px', borderColor: 'hsl(43 30% 22%)' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ fontSize: '1rem', fontWeight: '600', color: 'hsl(45 20% 88%)' }}>Novo Usuário</h2>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(45 8% 45%)' }}><X size={18} /></button>
