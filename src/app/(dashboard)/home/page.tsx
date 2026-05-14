@@ -13,24 +13,22 @@ export default async function HomePage() {
 
   // Painel do advogado
   if (profile.role === 'advogado') {
-    const { data: financeiro } = await supabase
-      .from('vw_advogado_financeiro')
-      .select('*')
-      .eq('profile_id', user.id)
-      .single()
-
-    const { data: lancamentos } = await supabase
-      .from('vw_pagamentos_advogado')
-      .select('*')
+    // Apenas pagamentos realizados vinculados a ele
+    const { data: pagamentos } = await supabase
+      .from('lancamentos')
+      .select('id as lancamento_id, descricao, valor, tipo, status, data_competencia, data_pagamento, forma_pagamento, referencia, observacoes, processo:processos(numero_processo, titulo)')
       .eq('advogado_id', user.id)
-      .order('data_competencia', { ascending: false })
+      .eq('status', 'realizado')
+      .order('data_pagamento', { ascending: false })
       .limit(100)
+
+    const totalRecebido = (pagamentos || []).reduce((s: number, l: any) => s + Number(l.valor), 0)
 
     return (
       <DashboardAdvogado
         profile={profile}
-        financeiro={financeiro || null}
-        lancamentos={lancamentos || []}
+        totalRecebido={totalRecebido}
+        pagamentos={pagamentos || []}
       />
     )
   }
