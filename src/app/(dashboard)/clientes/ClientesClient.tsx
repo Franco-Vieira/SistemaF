@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, X, User, Phone, Mail, MapPin, FileText, ChevronDown } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function ClientesClient({ clientes: initialClientes, advogados }: Props) {
+  const router = useRouter()
   const [clientes, setClientes] = useState(initialClientes)
   const [busca, setBusca] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -57,7 +59,7 @@ export default function ClientesClient({ clientes: initialClientes, advogados }:
             <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'hsl(45 8% 40%)' }} />
             <input className="input-base" placeholder="Buscar cliente..." value={busca} onChange={e => setBusca(e.target.value)} style={{ paddingLeft: '2.25rem', width: '220px' }} />
           </div>
-          <button className="btn-gold" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <button className="btn-gold" onClick={() => router.push('/clientes/novo')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Plus size={15} /> Novo Cliente
           </button>
         </div>
