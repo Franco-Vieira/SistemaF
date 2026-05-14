@@ -16,5 +16,10 @@ export default async function LancamentoDetalhePage({ params }: { params: Promis
 
   if (!lancamento) notFound()
 
-  return <LancamentoDetalhe lancamento={lancamento} />
+  const { data: profile } = await supabase.from('profiles').select('role, id').eq('id', user.id).single()
+
+  // Se for advogado vinculado a este lançamento, inverte a perspectiva (saída do escritório = entrada para ele)
+  const isAdvogadoVinculado = profile?.role === 'advogado' && lancamento.advogado_id === user.id
+
+  return <LancamentoDetalhe lancamento={lancamento} perspectiva={isAdvogadoVinculado ? 'advogado' : 'admin'} />
 }
