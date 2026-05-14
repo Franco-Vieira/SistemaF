@@ -155,29 +155,29 @@ export interface ComparativoAnual {
 export interface AdvogadoFinanceiro {
   profile_id: string
   advogado_nome: string
-  processo_id: string
-  numero_processo: string
-  processo_titulo: string
-  processo_status: string
-  cliente_nome: string
-  valor_total_previsto: number
-  valor_total_pago: number
-  valor_a_receber: number
+  total_lancamentos: number
+  total_entradas_realizadas: number
+  total_saidas_realizadas: number
+  total_entradas_previstas: number
+  total_saidas_previstas: number
+  saldo_realizado: number
 }
 
 export interface PagamentoAdvogado {
   advogado_id: string
   advogado_nome: string
-  processo_id: string
-  numero_processo: string
-  processo_titulo: string
-  cliente_nome: string
-  parcela_id: string
-  numero_parcela: number
-  valor_pago: number
-  valor_previsto: number
-  data_pagamento: string
+  lancamento_id: string
+  descricao: string
+  categoria: string
+  valor: number
+  tipo: string
+  status: string
+  data_competencia: string
+  data_pagamento?: string
   forma_pagamento?: string
-  referencia?: string
-  parcela_status: string
+  observacoes?: string
+  processo_id?: string
+  numero_processo?: string
+  processo_titulo?: string
+  cliente_nome?: string
 }
