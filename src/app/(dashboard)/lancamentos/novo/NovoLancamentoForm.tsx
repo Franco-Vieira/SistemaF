@@ -12,7 +12,7 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
   const [form, setForm] = useState({
     tipo: 'entrada', categoria: '', descricao: '', valor: '',
     data_competencia: new Date().toISOString().split('T')[0],
-    status: 'previsto', forma_pagamento: '', processo_id: '', advogado_id: '', observacoes: '',
+    status: 'previsto', forma_pagamento: '', processo_id: '', advogado_id: '', referencia: '', observacoes: '',
   })
 
   async function handleSalvar(e: React.FormEvent) {
@@ -24,6 +24,7 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
     if (!payload.processo_id) delete payload.processo_id
     if (!payload.advogado_id) delete payload.advogado_id
     if (!payload.forma_pagamento) delete payload.forma_pagamento
+    if (!payload.referencia) delete payload.referencia
     if (payload.status === 'realizado') payload.data_pagamento = new Date().toISOString()
     const { error } = await supabase.from('lancamentos').insert(payload)
     if (error) { setErro(error.message); setLoading(false); return }
@@ -103,6 +104,15 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
                   <option value="">Nenhum</option>
                   {advogados.map((a: any) => <option key={a.id} value={a.id}>{a.nome}</option>)}
                 </select>
+              </div>
+            )}
+            {form.advogado_id && (
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Referência do Pagamento *
+                  <span style={{ color: 'hsl(43 72% 58%)', marginLeft: '0.4rem', fontWeight: 400 }}>(obrigatório ao vincular advogado)</span>
+                </label>
+                <input className="input-base" required value={form.referencia} onChange={e => setForm(p => ({ ...p, referencia: e.target.value }))} placeholder="Ex: Honorários maio/2026, Repasse processo 001..." />
               </div>
             )}
             <div style={{ gridColumn: '1 / -1' }}>
