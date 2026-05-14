@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, X, ArrowUpCircle, ArrowDownCircle, CheckCircle } from 'lucide-react'
 import { formatDate, formatCurrency, categoriaLancamento } from '@/lib/utils'
@@ -8,6 +9,7 @@ import { formatDate, formatCurrency, categoriaLancamento } from '@/lib/utils'
 interface Props { lancamentos: any[]; processos: any[]; advogados: any[] }
 
 export default function LancamentosClient({ lancamentos: initial, processos, advogados }: Props) {
+  const router = useRouter()
   const [lancamentos, setLancamentos] = useState(initial)
   const [busca, setBusca] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<'todos' | 'entrada' | 'saida'>('todos')
@@ -61,7 +63,7 @@ export default function LancamentosClient({ lancamentos: initial, processos, adv
           <h1 className="font-display" style={{ fontSize: '1.6rem', fontWeight: '600', color: 'hsl(45 20% 92%)' }}>Lançamentos</h1>
           <p style={{ color: 'hsl(45 8% 45%)', fontSize: '0.8rem', marginTop: '0.2rem' }}>Entradas e saídas do escritório</p>
         </div>
-        <button className="btn-gold" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <button className="btn-gold" onClick={() => router.push('/lancamentos/novo')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <Plus size={15} /> Novo Lançamento
         </button>
       </div>
@@ -115,7 +117,7 @@ export default function LancamentosClient({ lancamentos: initial, processos, adv
             {filtrados.length === 0 ? (
               <tr><td colSpan={8} style={{ textAlign: 'center', color: 'hsl(45 8% 40%)', padding: '3rem' }}>Nenhum lançamento encontrado.</td></tr>
             ) : filtrados.map(l => (
-              <tr key={l.id}>
+              <tr key={l.id} onClick={() => router.push(`/lancamentos/${l.id}`)} style={{ cursor: 'pointer' }}>
                 <td>
                   {l.tipo === 'entrada'
                     ? <ArrowUpCircle size={16} color="hsl(142 60% 55%)" />
@@ -149,7 +151,7 @@ export default function LancamentosClient({ lancamentos: initial, processos, adv
 
       {showModal && (
         <div className="modal-overlay">
-          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '560px', maxHeight: '90dvh', overflowY: 'auto', borderColor: 'hsl(43 30% 22%)' }}>
+          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '560px', borderColor: 'hsl(43 30% 22%)' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ fontSize: '1rem', fontWeight: '600', color: 'hsl(45 20% 88%)' }}>Novo Lançamento</h2>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(45 8% 45%)' }}><X size={18} /></button>
