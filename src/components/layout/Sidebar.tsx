@@ -29,6 +29,7 @@ const navAdmin = [
 
 const navAdvogado = [
   { href: '/home', label: 'Meu Painel', icon: LayoutDashboard },
+  { href: '/meus-processos', label: 'Meus Processos', icon: FolderOpen },
 ]
 
 export default function Sidebar({ profile, alertasCount = 0, logoUrl }: SidebarProps) {
