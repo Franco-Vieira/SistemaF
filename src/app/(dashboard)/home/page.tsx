@@ -16,7 +16,7 @@ export default async function HomePage() {
     // Apenas pagamentos realizados vinculados a ele
     const { data: pagamentos } = await supabase
       .from('lancamentos')
-      .select('id as lancamento_id, descricao, valor, tipo, status, data_competencia, data_pagamento, forma_pagamento, referencia, observacoes, processo:processos(numero_processo, titulo)')
+      .select('id, descricao, valor, tipo, status, data_competencia, data_pagamento, forma_pagamento, referencia, observacoes, processo:processos(numero_processo, titulo)')
       .eq('advogado_id', user.id)
       .eq('status', 'realizado')
       .order('data_pagamento', { ascending: false })
