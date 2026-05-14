@@ -79,3 +79,33 @@ export async function DELETE(req: NextRequest) {
 
   return NextResponse.json({ ok: true })
 }
+
+export async function PUT(req: NextRequest) {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+
+  const { id, senha, email, nome } = await req.json()
+  const supabaseAdmin = getAdminClient()
+
+  const updates: any = {}
+  if (senha) updates.password = senha
+  if (email) updates.email = email
+  if (nome) updates.user_metadata = { nome }
+
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(id, updates)
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  // Atualizar profile também
+  const profileUpdates: any = {}
+  if (email) profileUpdates.email = email
+  if (nome) profileUpdates.nome = nome
+  if (Object.keys(profileUpdates).length > 0) {
+    await supabaseAdmin.from('profiles').update(profileUpdates).eq('id', id)
+  }
+
+  return NextResponse.json({ ok: true })
+}
