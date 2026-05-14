@@ -54,3 +54,25 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ ok: true })
 }
+
+export async function DELETE(req: NextRequest) {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+
+  const { id } = await req.json()
+
+  // Não permite excluir a si mesmo
+  if (id === user.id) return NextResponse.json({ error: 'Não é possível excluir sua própria conta' }, { status: 400 })
+
+  const supabaseAdmin = getAdminClient()
+
+  // Deleta do Auth (cascade deleta o profile via trigger)
+  const { error } = await supabaseAdmin.auth.admin.deleteUser(id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  return NextResponse.json({ ok: true })
+}
