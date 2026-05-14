@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, X, FolderOpen } from 'lucide-react'
 import { formatDate, statusProcessoLabel, formatCurrency } from '@/lib/utils'
@@ -12,6 +13,7 @@ const statusColors: Record<string, string> = {
 }
 
 export default function ProcessosClient({ processos: initialProcessos, clientes, advogados }: Props) {
+  const router = useRouter()
   const [processos, setProcessos] = useState(initialProcessos)
   const [busca, setBusca] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -77,7 +79,7 @@ export default function ProcessosClient({ processos: initialProcessos, clientes,
             <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'hsl(45 8% 40%)' }} />
             <input className="input-base" placeholder="Buscar processo..." value={busca} onChange={e => setBusca(e.target.value)} style={{ paddingLeft: '2.25rem', width: '220px' }} />
           </div>
-          <button className="btn-gold" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <button className="btn-gold" onClick={() => router.push('/processos/novo')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Plus size={15} /> Novo Processo
           </button>
         </div>
@@ -129,7 +131,7 @@ export default function ProcessosClient({ processos: initialProcessos, clientes,
 
       {showModal && (
         <div className="modal-overlay">
-          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '600px', maxHeight: '90dvh', overflowY: 'auto', borderColor: 'hsl(43 30% 22%)' }}>
+          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '600px', borderColor: 'hsl(43 30% 22%)' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ fontSize: '1rem', fontWeight: '600', color: 'hsl(45 20% 88%)' }}>Novo Processo</h2>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(45 8% 45%)' }}><X size={18} /></button>
