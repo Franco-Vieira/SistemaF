@@ -26,9 +26,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     alertasCount = count || 0
   }
 
+  const { data: config } = await supabase.from('configuracoes').select('logo_url').eq('id', 'default').single()
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'hsl(220 15% 8%)' }}>
-      <Sidebar profile={profile as Profile} alertasCount={alertasCount} />
+      <Sidebar profile={profile as Profile} alertasCount={alertasCount} logoUrl={config?.logo_url || ''} />
       <main className="dashboard-main">
         {children}
       </main>
