@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import DashboardClient from './DashboardClient'
+import DashboardAdvogado from './DashboardAdvogado'
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -10,26 +11,26 @@ export default async function HomePage() {
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
   if (!profile) redirect('/login')
 
-  // Redireciona advogado para seu painel
+  // Painel do advogado
   if (profile.role === 'advogado') {
     const { data: financeiro } = await supabase
       .from('vw_advogado_financeiro')
       .select('*')
       .eq('profile_id', user.id)
+      .single()
 
-    const { data: pagamentos } = await supabase
+    const { data: lancamentos } = await supabase
       .from('vw_pagamentos_advogado')
       .select('*')
       .eq('advogado_id', user.id)
-      .order('data_pagamento', { ascending: false })
-      .limit(50)
+      .order('data_competencia', { ascending: false })
+      .limit(100)
 
     return (
-      <DashboardClient
-        role="advogado"
+      <DashboardAdvogado
         profile={profile}
-        advogadoFinanceiro={financeiro || []}
-        pagamentosAdvogado={pagamentos || []}
+        financeiro={financeiro || null}
+        lancamentos={lancamentos || []}
       />
     )
   }
