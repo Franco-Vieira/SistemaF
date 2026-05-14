@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, X, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react'
 import { formatDate, formatCurrency, tipoContratoLabel, statusContratoLabel, statusParcelaLabel, formaPagamentoLabel } from '@/lib/utils'
@@ -11,6 +12,7 @@ const statusContratoColor: Record<string, string> = { ativo: 'badge-success', qu
 const statusParcelaColor: Record<string, string> = { pendente: 'badge-warning', pago: 'badge-success', pago_parcial: 'badge-info', atrasado: 'badge-danger', cancelado: 'badge-muted' }
 
 export default function ContratosClient({ contratos: initialContratos, processos }: Props) {
+  const router = useRouter()
   const [contratos, setContratos] = useState(initialContratos)
   const [busca, setBusca] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -94,7 +96,7 @@ export default function ContratosClient({ contratos: initialContratos, processos
             <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'hsl(45 8% 40%)' }} />
             <input className="input-base" placeholder="Buscar contrato..." value={busca} onChange={e => setBusca(e.target.value)} style={{ paddingLeft: '2.25rem', width: '220px' }} />
           </div>
-          <button className="btn-gold" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <button className="btn-gold" onClick={() => router.push('/contratos/novo')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Plus size={15} /> Novo Contrato
           </button>
         </div>
@@ -187,7 +189,7 @@ export default function ContratosClient({ contratos: initialContratos, processos
       {/* Modal novo contrato */}
       {showModal && (
         <div className="modal-overlay">
-          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '560px', maxHeight: '90dvh', overflowY: 'auto', borderColor: 'hsl(43 30% 22%)' }}>
+          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '560px', borderColor: 'hsl(43 30% 22%)' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ fontSize: '1rem', fontWeight: '600', color: 'hsl(45 20% 88%)' }}>Novo Contrato</h2>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(45 8% 45%)' }}><X size={18} /></button>
@@ -251,7 +253,7 @@ export default function ContratosClient({ contratos: initialContratos, processos
       {/* Modal baixa */}
       {showBaixaModal && (
         <div className="modal-overlay">
-          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '420px', maxHeight: '90dvh', overflowY: 'auto', borderColor: 'hsl(43 30% 22%)' }}>
+          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '420px', borderColor: 'hsl(43 30% 22%)' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ fontSize: '1rem', fontWeight: '600', color: 'hsl(45 20% 88%)' }}>Dar Baixa — Parcela {showBaixaModal.numero_parcela}</h2>
               <button onClick={() => setShowBaixaModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(45 8% 45%)' }}><X size={18} /></button>
