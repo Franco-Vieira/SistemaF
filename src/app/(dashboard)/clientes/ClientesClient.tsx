@@ -108,7 +108,7 @@ export default function ClientesClient({ clientes: initialClientes, advogados }:
       {/* Modal cadastro */}
       {showModal && (
         <div className="modal-overlay">
-          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '560px', maxHeight: '90dvh', overflowY: 'auto', borderColor: 'hsl(43 30% 22%)' }}>
+          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '560px', borderColor: 'hsl(43 30% 22%)' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ fontSize: '1rem', fontWeight: '600', color: 'hsl(45 20% 88%)' }}>Novo Cliente</h2>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(45 8% 45%)', padding: '0.25rem' }}><X size={18} /></button>
