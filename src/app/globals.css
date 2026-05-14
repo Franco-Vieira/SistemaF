@@ -123,3 +123,18 @@ body {
   animation: shimmer 1.5s infinite;
   border-radius: var(--radius);
 }
+
+/* Modal responsivo */
+.modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 600px) {
+  .modal-grid {
+    grid-template-columns: 1fr;
+  }
+  .modal-grid > * {
+    grid-column: 1 / -1 !important;
+  }
+}
