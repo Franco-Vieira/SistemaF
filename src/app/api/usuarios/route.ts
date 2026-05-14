@@ -29,7 +29,10 @@ export async function POST(req: NextRequest) {
     user_metadata: { nome, role },
   })
 
-  if (authError) return NextResponse.json({ error: authError.message }, { status: 400 })
+  if (authError) {
+    console.error("AUTH ERROR:", JSON.stringify(authError))
+    return NextResponse.json({ error: authError.message, details: JSON.stringify(authError) }, { status: 400 })
+  }
 
   if (telefone) {
     await supabaseAdmin.from('profiles').update({ telefone }).eq('id', authData.user.id)
