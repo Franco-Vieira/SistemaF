@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, X, UserCheck, UserX } from 'lucide-react'
+import { Plus, X, UserCheck, UserX, Trash2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { Profile } from '@/types'
 
@@ -10,7 +10,9 @@ interface Props { usuarios: Profile[]; adminId: string }
 export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
   const [usuarios, setUsuarios] = useState(initial)
   const [showModal, setShowModal] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadingId, setLoadingId] = useState('')
   const [erro, setErro] = useState('')
   const [sucesso, setSucesso] = useState('')
   const [form, setForm] = useState({ nome: '', email: '', telefone: '', senha: '', role: 'advogado' })
@@ -38,12 +40,28 @@ export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
   }
 
   async function toggleAtivo(id: string, ativo: boolean) {
+    setLoadingId(id)
     const res = await fetch('/api/usuarios', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ativo: !ativo }),
     })
     if (res.ok) setUsuarios(prev => prev.map(u => u.id === id ? { ...u, ativo: !ativo } : u))
+    setLoadingId('')
+  }
+
+  async function handleExcluir(usuario: Profile) {
+    setLoadingId(usuario.id)
+    const res = await fetch('/api/usuarios', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: usuario.id }),
+    })
+    if (res.ok) {
+      setUsuarios(prev => prev.filter(u => u.id !== usuario.id))
+      setConfirmDelete(null)
+    }
+    setLoadingId('')
   }
 
   return (
@@ -98,10 +116,23 @@ export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
                 <td style={{ color: 'hsl(45 8% 50%)', fontSize: '0.8rem' }}>{formatDate(u.created_at)}</td>
                 <td>
                   {u.id !== adminId && (
-                    <button className="btn-ghost" onClick={() => toggleAtivo(u.id, u.ativo)}
-                      style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      {u.ativo ? <><UserX size={12} /> Desativar</> : <><UserCheck size={12} /> Ativar</>}
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <button
+                        className="btn-ghost"
+                        onClick={() => toggleAtivo(u.id, u.ativo)}
+                        disabled={loadingId === u.id}
+                        style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                      >
+                        {u.ativo ? <><UserX size={12} /> Desativar</> : <><UserCheck size={12} /> Ativar</>}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(u)}
+                        disabled={loadingId === u.id}
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'none', border: '1px solid hsl(0 72% 51% / 0.4)', borderRadius: '6px', cursor: 'pointer', color: 'hsl(0 72% 65%)' }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>
@@ -110,9 +141,10 @@ export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
         </table>
       </div>
 
+      {/* Modal novo usuário */}
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '460px', borderColor: 'hsl(43 30% 22%)' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', overflowY: 'auto' }}>
+          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '460px', borderColor: 'hsl(43 30% 22%)', margin: 'auto' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ fontSize: '1rem', fontWeight: '600', color: 'hsl(45 20% 88%)' }}>Novo Usuário</h2>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(45 8% 45%)' }}><X size={18} /></button>
@@ -148,6 +180,33 @@ export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
                 <button type="submit" className="btn-gold" disabled={loading}>{loading ? 'Criando...' : 'Criar Usuário'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmação de exclusão */}
+      {confirmDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="card-base" style={{ width: '100%', maxWidth: '400px', borderColor: 'hsl(0 50% 30%)', margin: 'auto' }}>
+            <div style={{ padding: '1.5rem', textAlign: 'center' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'hsl(0 72% 51% / 0.15)', border: '1px solid hsl(0 72% 51% / 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                <Trash2 size={20} color="hsl(0 72% 65%)" />
+              </div>
+              <h3 style={{ fontSize: '1rem', fontWeight: '600', color: 'hsl(45 20% 88%)', marginBottom: '0.5rem' }}>Excluir usuário?</h3>
+              <p style={{ fontSize: '0.875rem', color: 'hsl(45 8% 55%)', marginBottom: '1.5rem' }}>
+                Tem certeza que deseja excluir <strong style={{ color: 'hsl(45 20% 80%)' }}>{confirmDelete.nome}</strong>? Esta ação não pode ser desfeita.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+                <button className="btn-ghost" onClick={() => setConfirmDelete(null)}>Cancelar</button>
+                <button
+                  onClick={() => handleExcluir(confirmDelete)}
+                  disabled={loadingId === confirmDelete.id}
+                  style={{ padding: '0.5rem 1.25rem', background: 'hsl(0 72% 45%)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.875rem' }}
+                >
+                  {loadingId === confirmDelete.id ? 'Excluindo...' : 'Excluir'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
