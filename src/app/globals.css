@@ -154,20 +154,19 @@ body {
 .sidebar-topbar  { display: none !important; }
 .sidebar-mobile-close { display: none !important; }
 
-/* Modal overlay — desktop */
+/* Modal overlay */
 .modal-overlay {
   position: fixed;
-  top: -10vh;       /* sobe o overlay 10% acima da tela */
-  left: 0;
-  right: 0;
-  bottom: -10vh;    /* desce o overlay 10% abaixo da tela */
+  inset: 0;
   background: rgba(0,0,0,0.65);
   z-index: 100;
   overflow-y: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 2rem 1rem;
+}
+
+/* Card dentro do modal — centralizado via margin auto */
+.modal-overlay > div {
+  margin: 0 auto;
 }
 
 /* ── Mobile (≤ 768px) ─────────────────────────────────────── */
@@ -183,11 +182,7 @@ body {
     padding-top: calc(56px + 1rem);
   }
 
-  /* Mobile: overlay normal, card rola dentro */
   .modal-overlay {
-    top: 0;
-    bottom: 0;
-    align-items: flex-start;
     padding: calc(56px + 0.75rem) 0.75rem 1rem;
   }
 }
