@@ -143,8 +143,8 @@ export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
 
       {/* Modal novo usuário */}
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', overflowY: 'auto' }}>
-          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '460px', borderColor: 'hsl(43 30% 22%)', margin: 'auto' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, overflowY: 'auto', padding: '2rem 1rem' }}>
+          <div className="card-base animate-fade-in" style={{ width: '100%', maxWidth: '460px', margin: '0 auto', borderColor: 'hsl(43 30% 22%)' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ fontSize: '1rem', fontWeight: '600', color: 'hsl(45 20% 88%)' }}>Novo Usuário</h2>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(45 8% 45%)' }}><X size={18} /></button>
@@ -186,8 +186,8 @@ export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
 
       {/* Modal confirmação de exclusão */}
       {confirmDelete && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="card-base" style={{ width: '100%', maxWidth: '400px', borderColor: 'hsl(0 50% 30%)', margin: 'auto' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 110, overflowY: 'auto', padding: '2rem 1rem' }}>
+          <div className="card-base" style={{ width: '100%', maxWidth: '400px', margin: '0 auto', borderColor: 'hsl(0 50% 30%)' }}>
             <div style={{ padding: '1.5rem', textAlign: 'center' }}>
               <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'hsl(0 72% 51% / 0.15)', border: '1px solid hsl(0 72% 51% / 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
                 <Trash2 size={20} color="hsl(0 72% 65%)" />
