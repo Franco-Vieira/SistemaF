@@ -154,18 +154,17 @@ body {
 .sidebar-topbar  { display: none !important; }
 .sidebar-mobile-close { display: none !important; }
 
-/* Modal overlay — desktop */
+/* Modal overlay — desktop e mobile */
 .modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.65);
   z-index: 100;
+  overflow-y: auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 1rem;
-  /* garante que o modal fique sobre o sidebar */
-  left: 0;
+  padding: 5vh 1rem;
 }
 
 /* ── Mobile (≤ 768px) ─────────────────────────────────────── */
@@ -181,10 +180,8 @@ body {
     padding-top: calc(56px + 1rem); /* altura da topbar */
   }
 
-  /* Modal ocupa quase tela toda no mobile */
+  /* Modal no mobile */
   .modal-overlay {
-    align-items: flex-start;
-    padding: 0.5rem;
-    padding-top: calc(56px + 0.5rem);
+    padding: calc(56px + 1rem) 0.5rem 1rem;
   }
 }
