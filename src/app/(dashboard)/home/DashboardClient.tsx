@@ -7,7 +7,7 @@ import {
 } from 'recharts'
 import { formatCurrency, formatDateTime, formatDate, statusParcelaLabel } from '@/lib/utils'
 import { TrendingUp, TrendingDown, Users, FolderOpen, AlertTriangle, Calendar, DollarSign, Clock } from 'lucide-react'
-import type { Profile, ResumoMensal, ComparativoAnual, Alerta, AdvogadoFinanceiro, PagamentoAdvogado } from '@/types'
+import type { Profile, ResumoMensal, ComparativoAnual, Alerta } from '@/types'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -21,8 +21,6 @@ interface DashboardClientProps {
   totalProcessos?: number
   parcelasAtrasadas?: number
   mesAtual?: string
-  advogadoFinanceiro?: AdvogadoFinanceiro[]
-  pagamentosAdvogado?: PagamentoAdvogado[]
 }
 
 const GOLD = 'hsl(43, 72%, 58%)'
@@ -67,105 +65,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function DashboardClient(props: DashboardClientProps) {
   const { role, profile } = props
   const [mesSelecionado, setMesSelecionado] = useState(props.mesAtual || '')
-
-  // ---- PAINEL ADVOGADO ----
-  if (role === 'advogado') {
-    const { advogadoFinanceiro = [], pagamentosAdvogado = [] } = props
-
-    const totalPrevisto = advogadoFinanceiro.reduce((s, r) => s + Number(r.valor_total_previsto), 0)
-    const totalPago = advogadoFinanceiro.reduce((s, r) => s + Number(r.valor_total_pago), 0)
-    const totalReceber = advogadoFinanceiro.reduce((s, r) => s + Number(r.valor_a_receber), 0)
-
-    return (
-      <div className="animate-fade-in">
-        <div style={{ marginBottom: '2rem' }}>
-          <h1 className="font-display" style={{ fontSize: '1.75rem', fontWeight: '600', color: 'hsl(45 20% 92%)' }}>
-            Olá, {profile.nome.split(' ')[0]}
-          </h1>
-          <p style={{ color: 'hsl(45 8% 45%)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            Resumo dos seus processos e recebimentos
-          </p>
-        </div>
-
-        {/* Cards resumo */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
-          <StatCard label="Total Previsto" value={formatCurrency(totalPrevisto)} icon={DollarSign} color={GOLD} />
-          <StatCard label="Total Recebido" value={formatCurrency(totalPago)} icon={TrendingUp} color={SUCCESS} />
-          <StatCard label="A Receber" value={formatCurrency(totalReceber)} icon={Clock} color="hsl(210 80% 55%)" />
-        </div>
-
-        {/* Processos */}
-        <div className="card-base" style={{ marginBottom: '1.5rem' }}>
-          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid hsl(var(--border))' }}>
-            <h2 style={{ fontSize: '0.9rem', fontWeight: '600', color: 'hsl(45 20% 88%)' }}>Meus Processos</h2>
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="table-base">
-              <thead>
-                <tr>
-                  <th>Processo</th>
-                  <th>Cliente</th>
-                  <th>Status</th>
-                  <th>Previsto</th>
-                  <th>Pago</th>
-                  <th>A Receber</th>
-                </tr>
-              </thead>
-              <tbody>
-                {advogadoFinanceiro.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'hsl(45 8% 40%)', padding: '2rem' }}>Nenhum processo encontrado</td></tr>
-                ) : advogadoFinanceiro.map(r => (
-                  <tr key={r.processo_id}>
-                    <td><span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'hsl(43 72% 58%)' }}>{r.numero_processo}</span><br /><span style={{ color: 'hsl(45 8% 55%)', fontSize: '0.8rem' }}>{r.processo_titulo}</span></td>
-                    <td>{r.cliente_nome}</td>
-                    <td><span className={`badge badge-${r.processo_status === 'ativo' ? 'success' : 'muted'}`}>{r.processo_status}</span></td>
-                    <td>{formatCurrency(Number(r.valor_total_previsto))}</td>
-                    <td style={{ color: SUCCESS }}>{formatCurrency(Number(r.valor_total_pago))}</td>
-                    <td style={{ color: 'hsl(210 80% 65%)' }}>{formatCurrency(Number(r.valor_a_receber))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Histórico de pagamentos */}
-        <div className="card-base">
-          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid hsl(var(--border))' }}>
-            <h2 style={{ fontSize: '0.9rem', fontWeight: '600', color: 'hsl(45 20% 88%)' }}>Histórico de Recebimentos</h2>
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="table-base">
-              <thead>
-                <tr>
-                  <th>Data / Hora</th>
-                  <th>Processo</th>
-                  <th>Cliente</th>
-                  <th>Parcela</th>
-                  <th>Forma</th>
-                  <th>Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagamentosAdvogado.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'hsl(45 8% 40%)', padding: '2rem' }}>Nenhum recebimento registrado</td></tr>
-                ) : pagamentosAdvogado.map(p => (
-                  <tr key={p.parcela_id}>
-                    <td style={{ fontSize: '0.8rem', color: 'hsl(45 8% 55%)' }}>{formatDateTime(p.data_pagamento)}</td>
-                    <td><span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'hsl(43 72% 58%)' }}>{p.numero_processo}</span></td>
-                    <td>{p.cliente_nome}</td>
-                    <td style={{ color: 'hsl(45 8% 55%)' }}>Parcela {p.numero_parcela}</td>
-                    <td>{p.forma_pagamento || '-'}</td>
-                    <td style={{ color: SUCCESS, fontWeight: '500' }}>{formatCurrency(Number(p.valor_pago))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   // ---- DASHBOARD ADMIN ----
   const { resumoMensal = [], comparativoAnual = [], alertas = [], totalClientes = 0, totalProcessos = 0, parcelasAtrasadas = 0 } = props
