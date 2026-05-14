@@ -5,11 +5,13 @@ import { useState } from 'react'
 import { ArrowLeft, ArrowUpCircle, ArrowDownCircle, CheckCircle, Calendar, Tag, DollarSign, FileText, User, CreditCard, AlignLeft } from 'lucide-react'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 
-export default function LancamentoDetalhe({ lancamento: inicial }: { lancamento: any }) {
+export default function LancamentoDetalhe({ lancamento: inicial, perspectiva = 'admin' }: { lancamento: any, perspectiva?: 'admin' | 'advogado' }) {
   const router = useRouter()
   const [lancamento, setLancamento] = useState(inicial)
   const [loading, setLoading] = useState(false)
-  const isEntrada = lancamento.tipo === 'entrada'
+  // Para o advogado, saída do escritório = entrada para ele
+  const tipoOriginal = lancamento.tipo
+  const isEntrada = perspectiva === 'advogado' ? true : tipoOriginal === 'entrada'
 
   async function darBaixa() {
     setLoading(true)
@@ -49,10 +51,10 @@ export default function LancamentoDetalhe({ lancamento: inicial }: { lancamento:
           </div>
           <div>
             <div style={{ fontSize: '0.75rem', color: 'hsl(45 8% 45%)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>
-              {isEntrada ? 'Entrada' : 'Saída'}
+              {perspectiva === 'advogado' ? 'Recebido' : (isEntrada ? 'Entrada' : 'Saída')}
             </div>
             <div style={{ fontSize: '2rem', fontWeight: '700', color: isEntrada ? 'hsl(142 60% 55%)' : 'hsl(0 72% 65%)' }}>
-              {isEntrada ? '' : '-'}{formatCurrency(Number(lancamento.valor))}
+              {perspectiva === 'admin' && !isEntrada ? '-' : ''}{formatCurrency(Number(lancamento.valor))}
             </div>
           </div>
           <div style={{ marginLeft: 'auto' }}>
@@ -89,7 +91,7 @@ export default function LancamentoDetalhe({ lancamento: inicial }: { lancamento:
       </div>
 
       {/* Ação de baixa */}
-      {lancamento.status === 'previsto' && (
+      {lancamento.status === 'previsto' && perspectiva === 'admin' && (
         <div className="card-base" style={{ padding: '1.25rem 1.5rem', borderColor: 'hsl(43 30% 22%)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
           <div>
             <div style={{ fontSize: '0.875rem', fontWeight: '500', color: 'hsl(45 20% 88%)' }}>Dar Baixa</div>
