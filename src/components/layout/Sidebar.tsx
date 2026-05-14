@@ -7,13 +7,14 @@ import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, Users, FolderOpen, FileText,
   ArrowDownUp, UserCog, LogOut, Bell, ChevronRight,
-  Scale, Menu, X
+  Scale, Menu, X, Settings
 } from 'lucide-react'
 import type { Profile } from '@/types'
 
 interface SidebarProps {
   profile: Profile
   alertasCount?: number
+  logoUrl?: string
 }
 
 const navAdmin = [
@@ -23,13 +24,14 @@ const navAdmin = [
   { href: '/contratos', label: 'Contratos', icon: FileText },
   { href: '/lancamentos', label: 'Lançamentos', icon: ArrowDownUp },
   { href: '/usuarios', label: 'Usuários', icon: UserCog },
+  { href: '/configuracoes', label: 'Configurações', icon: Settings },
 ]
 
 const navAdvogado = [
   { href: '/home', label: 'Meu Painel', icon: LayoutDashboard },
 ]
 
-export default function Sidebar({ profile, alertasCount = 0 }: SidebarProps) {
+export default function Sidebar({ profile, alertasCount = 0, logoUrl }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const nav = profile.role === 'admin' ? navAdmin : navAdvogado
