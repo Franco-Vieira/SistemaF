@@ -70,7 +70,8 @@ export const formaPagamentoLabel: Record<string, string> = {
 }
 
 export const categoriaLancamento = [
-  'Honorários',
+  'Honorários Contratuais',
+  'Honorários Sucumbenciais',
   'Custas Processuais',
   'Repasse Advogado',
   'Aluguel',
