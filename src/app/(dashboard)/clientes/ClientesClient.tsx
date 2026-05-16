@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Search, X, User, Phone, Mail, MapPin, FileText, ChevronDown } from 'lucide-react'
+import { Plus, Search, X, User, Phone, Mail, MapPin, FileText, ChevronDown, Pencil, Trash2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { Cliente, Profile } from '@/types'
 
@@ -19,6 +19,8 @@ export default function ClientesClient({ clientes: initialClientes, advogados }:
   const [showModal, setShowModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState<any>(null)
+  const [loadingDelete, setLoadingDelete] = useState(false)
   const [form, setForm] = useState({
     nome: '', telefone: '', email: '', endereco: '', cidade: '', estado: '', cep: '',
     origem: 'escritorio', advogado_origem_id: '', observacoes: '',
@@ -45,6 +47,15 @@ export default function ClientesClient({ clientes: initialClientes, advogados }:
     setShowModal(false)
     setForm({ nome: '', telefone: '', email: '', endereco: '', cidade: '', estado: '', cep: '', origem: 'escritorio', advogado_origem_id: '', observacoes: '' })
     setLoading(false)
+  }
+
+  async function handleDeletar(cliente: any) {
+    setLoadingDelete(true)
+    const supabase = createClient()
+    await supabase.from('clientes').update({ ativo: false }).eq('id', cliente.id)
+    setClientes(prev => prev.filter(c => c.id !== cliente.id))
+    setConfirmDelete(null)
+    setLoadingDelete(false)
   }
 
   return (
@@ -75,6 +86,7 @@ export default function ClientesClient({ clientes: initialClientes, advogados }:
               <th>Cidade</th>
               <th>Origem</th>
               <th>Cadastro</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -101,6 +113,16 @@ export default function ClientesClient({ clientes: initialClientes, advogados }:
                   </span>
                 </td>
                 <td style={{ color: 'hsl(45 8% 50%)', fontSize: '0.8rem' }}>{formatDate(c.created_at)}</td>
+                <td>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <button onClick={() => router.push(`/clientes/${c.id}/editar`)} style={{ padding: '0.25rem 0.5rem', background: 'none', border: '1px solid hsl(43 40% 30%)', borderRadius: '6px', cursor: 'pointer', color: 'hsl(43 72% 58%)', display: 'flex', alignItems: 'center' }}>
+                      <Pencil size={12} />
+                    </button>
+                    <button onClick={() => setConfirmDelete(c)} style={{ padding: '0.25rem 0.5rem', background: 'none', border: '1px solid hsl(0 72% 51% / 0.4)', borderRadius: '6px', cursor: 'pointer', color: 'hsl(0 72% 65%)', display: 'flex', alignItems: 'center' }}>
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -170,6 +192,29 @@ export default function ClientesClient({ clientes: initialClientes, advogados }:
                 <button type="submit" className="btn-gold" disabled={loading}>{loading ? 'Salvando...' : 'Salvar Cliente'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmar exclusão */}
+      {confirmDelete && (
+        <div className="modal-overlay">
+          <div className="card-base" style={{ width: '100%', maxWidth: '400px', borderColor: 'hsl(0 50% 30%)' }}>
+            <div style={{ padding: '1.5rem', textAlign: 'center' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'hsl(0 72% 51% / 0.15)', border: '1px solid hsl(0 72% 51% / 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                <Trash2 size={20} color="hsl(0 72% 65%)" />
+              </div>
+              <h3 style={{ fontSize: '1rem', fontWeight: '600', color: 'hsl(45 20% 88%)', marginBottom: '0.5rem' }}>Excluir cliente?</h3>
+              <p style={{ fontSize: '0.875rem', color: 'hsl(45 8% 55%)', marginBottom: '1.5rem' }}>
+                Tem certeza que deseja excluir <strong style={{ color: 'hsl(45 20% 80%)' }}>{confirmDelete.nome}</strong>? Esta ação não pode ser desfeita.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+                <button className="btn-ghost" onClick={() => setConfirmDelete(null)}>Cancelar</button>
+                <button onClick={() => handleDeletar(confirmDelete)} disabled={loadingDelete} style={{ padding: '0.5rem 1.25rem', background: 'hsl(0 72% 45%)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.875rem' }}>
+                  {loadingDelete ? 'Excluindo...' : 'Excluir'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
