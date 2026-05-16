@@ -96,6 +96,7 @@ export default function ProcessosClient({ processos: initialProcessos, clientes,
               <th>Status</th>
               <th>Abertura</th>
               <th>Valor Contrato</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -123,6 +124,14 @@ export default function ProcessosClient({ processos: initialProcessos, clientes,
                 <td><span className={`badge ${statusColors[p.status] || 'badge-muted'}`}>{statusProcessoLabel[p.status]}</span></td>
                 <td style={{ color: 'hsl(45 8% 55%)', fontSize: '0.8rem' }}>{formatDate(p.data_abertura)}</td>
                 <td style={{ fontWeight: '500' }}>{p.valor_total_contrato > 0 ? formatCurrency(p.valor_total_contrato) : '—'}</td>
+                <td>
+                  <button
+                    onClick={e => { e.stopPropagation(); router.push(`/processos/${p.id}/editar`) }}
+                    style={{ padding: '0.25rem 0.5rem', background: 'none', border: '1px solid hsl(43 40% 30%)', borderRadius: '6px', cursor: 'pointer', color: 'hsl(43 72% 58%)', display: 'flex', alignItems: 'center' }}
+                  >
+                    <Pencil size={12} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
