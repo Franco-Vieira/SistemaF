@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Search, X, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react'
+import { Plus, Search, X, ChevronDown, ChevronUp, CheckCircle, Pencil } from 'lucide-react'
 import { formatDate, formatCurrency, tipoContratoLabel, statusContratoLabel, statusParcelaLabel, formaPagamentoLabel } from '@/lib/utils'
 
 interface Props { contratos: any[]; processos: any[] }
@@ -135,8 +135,13 @@ export default function ContratosClient({ contratos: initialContratos, processos
                   <span className={`badge ${statusContratoColor[c.status] || 'badge-muted'}`}>{statusContratoLabel[c.status]}</span>
                 </div>
               </div>
-              <div style={{ color: 'hsl(45 8% 45%)' }}>
-                {expandido === c.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button onClick={e => { e.stopPropagation(); router.push(`/contratos/${c.id}/editar`) }} style={{ padding: '0.25rem 0.5rem', background: 'none', border: '1px solid hsl(43 40% 30%)', borderRadius: '6px', cursor: 'pointer', color: 'hsl(43 72% 58%)', display: 'flex', alignItems: 'center' }}>
+                  <Pencil size={12} />
+                </button>
+                <div style={{ color: 'hsl(45 8% 45%)' }}>
+                  {expandido === c.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </div>
               </div>
             </div>
 
