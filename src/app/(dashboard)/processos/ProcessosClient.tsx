@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Search, X, FolderOpen } from 'lucide-react'
+import { Plus, Search, X, FolderOpen, Pencil } from 'lucide-react'
 import { formatDate, statusProcessoLabel, formatCurrency } from '@/lib/utils'
 
 interface Props { processos: any[]; clientes: any[]; advogados: any[] }
