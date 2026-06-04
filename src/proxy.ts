@@ -1,11 +1,18 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Rotas que a secretaria pode acessar
+const SECRETARIA_ALLOWED = [
+  '/home',
+  '/clientes',
+  '/processos',
+  '/contratos',
+]
+
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request: { headers: request.headers },
   })
-
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -30,25 +37,32 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Autenticado → verificar se está ativo
+  // Autenticado → verificar se está ativo e checar role
   if (user && !isPublicRoute) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('ativo')
+      .select('ativo, role')
       .eq('id', user.id)
       .single()
 
-    // Usuário inativo → forçar logout e redirecionar para login
+    // Usuário inativo → forçar logout
     if (profile && profile.ativo === false) {
       await supabase.auth.signOut()
       const response = NextResponse.redirect(new URL('/login', request.url))
-      // Limpar cookies de sessão
       request.cookies.getAll().forEach(cookie => {
         if (cookie.name.includes('supabase') || cookie.name.includes('sb-')) {
           response.cookies.delete(cookie.name)
         }
       })
       return response
+    }
+
+    // Secretaria → só pode acessar rotas permitidas
+    if (profile && profile.role === 'secretaria') {
+      const allowed = SECRETARIA_ALLOWED.some(route => pathname === route || pathname.startsWith(route + '/'))
+      if (!allowed) {
+        return NextResponse.redirect(new URL('/home', request.url))
+      }
     }
   }
 
