@@ -115,7 +115,7 @@ export default function UsuariosClient({ usuarios: initial, adminId }: Props) {
           <h1 className="font-display" style={{ fontSize: '1.6rem', fontWeight: '600', color: 'hsl(45 20% 92%)' }}>Usuários</h1>
           <p style={{ color: 'hsl(45 8% 45%)', fontSize: '0.8rem', marginTop: '0.2rem' }}>{usuarios.length} usuário{usuarios.length !== 1 ? 's' : ''} no sistema</p>
         </div>
-        <button className="btn-gold" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <button className="btn-gold" onClick={() => router.push('/usuarios/novo')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <Plus size={15} /> Novo Usuário
         </button>
       </div>
