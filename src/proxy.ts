@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Rotas que a secretaria pode acessar
+// Rotas que a secretaria pode acessar (inclui todas as sub-rotas)
 const SECRETARIA_ALLOWED = [
   '/home',
   '/clientes',
@@ -57,11 +57,13 @@ export async function proxy(request: NextRequest) {
       return response
     }
 
-    // Secretaria → só pode acessar rotas permitidas
+    // Secretaria → só pode acessar rotas permitidas e todas as suas sub-rotas
     if (profile && profile.role === 'secretaria') {
-      const allowed = SECRETARIA_ALLOWED.some(route => pathname === route || pathname.startsWith(route + '/'))
+      const allowed = SECRETARIA_ALLOWED.some(route =>
+        pathname === route || pathname.startsWith(route + '/')
+      )
       if (!allowed) {
-        return NextResponse.redirect(new URL('/home', request.url))
+        return NextResponse.redirect(new URL('/clientes', request.url))
       }
     }
   }
@@ -75,5 +77,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webby)$).*)'],
 }
