@@ -1,87 +1,81 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import DashboardClient from './DashboardClient'
-import DashboardAdvogado from './DashboardAdvogado'
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
 
-export default async function HomePage() {
-  const supabase = await createClient()
+// Rotas que a secretaria pode acessar (inclui todas as sub-rotas)
+const SECRETARIA_ALLOWED = [
+  '/home',
+  '/clientes',
+  '/processos',
+  '/contratos',
+]
+
+export async function proxy(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request: { headers: request.headers },
+  })
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return request.cookies.getAll() },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({ request: { headers: request.headers } })
+          cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options))
+        },
+      },
+    }
+  )
+
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const { pathname } = request.nextUrl
+  const isPublicRoute = pathname.startsWith('/login')
 
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-  if (!profile) redirect('/login')
-
-  // Painel do advogado
-  if (profile.role === 'advogado') {
-    // Apenas pagamentos realizados vinculados a ele
-    const { data: pagamentos } = await supabase
-      .from('lancamentos')
-      .select('id, descricao, valor, tipo, status, data_competencia, data_pagamento, forma_pagamento, referencia, observacoes, processo:processos(numero_processo, titulo)')
-      .eq('advogado_id', user.id)
-      .eq('status', 'realizado')
-      .order('data_pagamento', { ascending: false })
-      .limit(100)
-
-    const totalRecebido = (pagamentos || []).reduce((s: number, l: any) => s + Number(l.valor), 0)
-
-    return (
-      <DashboardAdvogado
-        profile={profile}
-        totalRecebido={totalRecebido}
-        pagamentos={pagamentos || []}
-      />
-    )
+  // Não autenticado → login
+  if (!user && !isPublicRoute) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Admin — busca dados do dashboard
-  const now = new Date()
-  const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  // Autenticado → verificar se está ativo e checar role
+  if (user && !isPublicRoute) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('ativo, role')
+      .eq('id', user.id)
+      .single()
 
-  const { data: resumoMensal } = await supabase
-    .from('vw_resumo_mensal')
-    .select('*')
-    .order('mes', { ascending: false })
-    .limit(13)
+    // Usuário inativo → forçar logout
+    if (profile && profile.ativo === false) {
+      await supabase.auth.signOut()
+      const response = NextResponse.redirect(new URL('/login', request.url))
+      request.cookies.getAll().forEach(cookie => {
+        if (cookie.name.includes('supabase') || cookie.name.includes('sb-')) {
+          response.cookies.delete(cookie.name)
+        }
+      })
+      return response
+    }
 
-  const { data: comparativoAnual } = await supabase
-    .from('vw_comparativo_anual')
-    .select('*')
-    .eq('ano', now.getFullYear())
-    .order('mes', { ascending: true })
+    // Secretaria → só pode acessar rotas permitidas e todas as suas sub-rotas
+    if (profile && profile.role === 'secretaria') {
+      const allowed = SECRETARIA_ALLOWED.some(route =>
+        pathname === route || pathname.startsWith(route + '/')
+      )
+      if (!allowed) {
+        return NextResponse.redirect(new URL('/clientes', request.url))
+      }
+    }
+  }
 
-  const { data: alertas } = await supabase
-    .from('alertas')
-    .select('*')
-    .eq('lido', false)
-    .order('created_at', { ascending: false })
-    .limit(5)
+  // Autenticado tentando acessar login → home
+  if (user && isPublicRoute) {
+    return NextResponse.redirect(new URL('/home', request.url))
+  }
 
-  const { count: totalClientes } = await supabase
-    .from('clientes')
-    .select('*', { count: 'exact', head: true })
-    .eq('ativo', true)
+  return supabaseResponse
+}
 
-  const { count: totalProcessos } = await supabase
-    .from('processos')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'ativo')
-
-  const { count: parcelasAtrasadas } = await supabase
-    .from('parcelas')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'atrasado')
-
-  return (
-    <DashboardClient
-      role="admin"
-      profile={profile}
-      resumoMensal={resumoMensal || []}
-      comparativoAnual={comparativoAnual || []}
-      alertas={alertas || []}
-      totalClientes={totalClientes || 0}
-      totalProcessos={totalProcessos || 0}
-      parcelasAtrasadas={parcelasAtrasadas || 0}
-      mesAtual={mesAtual}
-    />
-  )
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webby)$).*)'],
 }
