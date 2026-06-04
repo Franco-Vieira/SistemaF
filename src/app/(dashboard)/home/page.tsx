@@ -11,5 +11,5 @@ export default async function HomePage() {
     .from('profiles').select('*').eq('id', user.id).single()
   if (!profile) redirect('/login')
 
-  return <DashboardClient profile={profile} />
+  return <DashboardClient profile={profile} role={profile.role} />
 }
