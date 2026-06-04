@@ -32,10 +32,35 @@ const navAdvogado = [
   { href: '/meus-processos', label: 'Meus Processos', icon: FolderOpen },
 ]
 
+const navSecretaria = [
+  { href: '/home', label: 'Painel', icon: LayoutDashboard },
+  { href: '/clientes', label: 'Clientes', icon: Users },
+  { href: '/processos', label: 'Processos', icon: FolderOpen },
+  { href: '/contratos', label: 'Contratos', icon: FileText },
+]
+
+function getRoleLabel(role: string) {
+  if (role === 'admin') return 'Administrador'
+  if (role === 'secretaria') return 'Secretaria'
+  return 'Advogado'
+}
+
+function getNavLabel(role: string) {
+  if (role === 'admin') return 'Administração'
+  if (role === 'secretaria') return 'Secretaria'
+  return 'Meu Painel'
+}
+
+function getNav(role: string) {
+  if (role === 'admin') return navAdmin
+  if (role === 'secretaria') return navSecretaria
+  return navAdvogado
+}
+
 export default function Sidebar({ profile, alertasCount = 0, logoUrl }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const nav = profile.role === 'admin' ? navAdmin : navAdvogado
+  const nav = getNav(profile.role)
   const [mobileOpen, setMobileOpen] = useState(false)
 
   async function handleLogout() {
@@ -57,7 +82,6 @@ export default function Sidebar({ profile, alertasCount = 0, logoUrl }: SidebarP
             <div className="font-display" style={{ fontSize: '0.95rem', fontWeight: '600', color: 'hsl(45 20% 92%)', lineHeight: 1.2 }}>Franco & Vieira</div>
             <div style={{ fontSize: '0.65rem', color: 'hsl(45 8% 40%)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Advogados & Assoc.</div>
           </div>
-          {/* Fechar no mobile */}
           <button onClick={() => setMobileOpen(false)} className="sidebar-mobile-close" style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(45 8% 45%)', padding: '0.25rem' }}>
             <X size={18} />
           </button>
@@ -67,7 +91,7 @@ export default function Sidebar({ profile, alertasCount = 0, logoUrl }: SidebarP
       {/* Navegação */}
       <nav style={{ flex: 1, padding: '1rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <div style={{ fontSize: '0.65rem', color: 'hsl(45 8% 35%)', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 0.5rem', marginBottom: '0.5rem' }}>
-          {profile.role === 'admin' ? 'Administração' : 'Meu Painel'}
+          {getNavLabel(profile.role)}
         </div>
 
         {nav.map(({ href, label, icon: Icon }) => {
@@ -103,7 +127,7 @@ export default function Sidebar({ profile, alertasCount = 0, logoUrl }: SidebarP
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '0.8rem', fontWeight: '500', color: 'hsl(45 20% 88%)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.nome}</div>
-            <div style={{ fontSize: '0.65rem', color: 'hsl(45 8% 45%)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{profile.role === 'admin' ? 'Administrador' : 'Advogado'}</div>
+            <div style={{ fontSize: '0.65rem', color: 'hsl(45 8% 45%)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{getRoleLabel(profile.role)}</div>
           </div>
         </div>
         <button onClick={handleLogout} className="btn-ghost" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.5rem' }}>
