@@ -12,19 +12,32 @@ export default async function HomePage() {
     .from('profiles').select('*').eq('id', user.id).single()
   if (!profile) redirect('/login')
 
-  // Secretaria → tela simples, sem dados financeiros
+  // Secretaria → painel simples sem dados financeiros
   if (profile.role === 'secretaria') {
     return <DashboardClient role="secretaria" profile={profile} />
   }
 
-  // Advogado → dashboard próprio
+  // Advogado → dashboard próprio com pagamentos
   if (profile.role === 'advogado') {
-    return <DashboardAdvogado profile={profile} />
+    const { data: pagamentos } = await supabase
+      .from('vw_pagamentos_advogado')
+      .select('*')
+      .eq('advogado_id', user.id)
+      .order('data_pagamento', { ascending: false })
+
+    const totalRecebido = (pagamentos || []).reduce((acc: number, p: any) => acc + Number(p.valor || 0), 0)
+
+    return (
+      <DashboardAdvogado
+        profile={profile}
+        totalRecebido={totalRecebido}
+        pagamentos={pagamentos || []}
+      />
+    )
   }
 
   // Admin → dashboard completo
-  const hoje = new Date()
-  const mesAtual = hoje.toISOString().substring(0, 7)
+  const mesAtual = new Date().toISOString().substring(0, 7)
 
   const [
     { data: resumoMensal },
