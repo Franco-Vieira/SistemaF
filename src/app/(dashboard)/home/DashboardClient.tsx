@@ -128,10 +128,16 @@ export default function DashboardClient(props: DashboardClientProps) {
 
   const resumoFiltrado = resumoMensal.find(r => r.mes?.startsWith(mesSelecionado)) || resumoMensal[0]
 
-  const mesesDisponiveis = resumoMensal.map(r => ({
-    value: r.mes?.substring(0, 7) || '',
-    label: r.mes ? format(parseISO(r.mes), 'MMMM yyyy', { locale: ptBR }) : '',
-  }))
+  const mesesDisponiveis = resumoMensal.map(r => {
+    const value = r.mes?.substring(0, 7) || '' // "2026-06" (sem conversão de fuso)
+    let label = ''
+    if (value) {
+      const [ano, mes] = value.split('-').map(Number)
+      // data montada no fuso local evita o deslocamento de -1 mês causado pelo timestamp UTC
+      label = format(new Date(ano, mes - 1, 1), 'MMMM yyyy', { locale: ptBR })
+    }
+    return { value, label }
+  })
 
   const dadosGrafico = comparativoAnual.map(r => ({
     mes: r.mes_nome,
