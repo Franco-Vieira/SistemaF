@@ -59,7 +59,7 @@ export default function DashboardAdvogado({ profile, totalRecebido, pagamentos }
                 <tr>
                   <th>Data</th>
                   <th>Descrição</th>
-                  <th>Referência</th>
+                  <th>Processo / Cliente</th>
                   <th>Forma</th>
                   <th>Valor</th>
                   <th></th>
@@ -68,8 +68,8 @@ export default function DashboardAdvogado({ profile, totalRecebido, pagamentos }
               <tbody>
                 {pagamentos.map((p: any) => (
                   <tr
-                    key={p.id}
-                    onClick={() => router.push(`/lancamentos/${p.id}`)}
+                    key={p.lancamento_id}
+                    onClick={() => router.push(`/lancamentos/${p.lancamento_id}`)}
                     style={{ cursor: 'pointer' }}
                   >
                     <td style={{ fontSize: '0.8rem', color: 'hsl(45 8% 55%)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
@@ -77,7 +77,7 @@ export default function DashboardAdvogado({ profile, totalRecebido, pagamentos }
                     </td>
                     <td style={{ fontWeight: '500' }}>{p.descricao}</td>
                     <td style={{ fontSize: '0.8rem', color: 'hsl(43 72% 65%)' }}>
-                      {p.referencia || p.observacoes || '—'}
+                      {p.numero_processo || p.cliente_nome || p.observacoes || '—'}
                     </td>
                     <td style={{ fontSize: '0.8rem', color: 'hsl(45 8% 55%)' }}>
                       {p.forma_pagamento ? p.forma_pagamento.charAt(0).toUpperCase() + p.forma_pagamento.slice(1) : '—'}
