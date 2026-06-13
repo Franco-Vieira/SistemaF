@@ -2,28 +2,101 @@
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
-import { ArrowLeft, ArrowUpCircle, ArrowDownCircle, CheckCircle, Calendar, Tag, DollarSign, FileText, User, CreditCard, AlignLeft } from 'lucide-react'
+import { ArrowLeft, ArrowUpCircle, ArrowDownCircle, CheckCircle, Calendar, Tag, DollarSign, FileText, User, CreditCard, AlignLeft, RotateCcw } from 'lucide-react'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 
 export default function LancamentoDetalhe({ lancamento: inicial, perspectiva = 'admin' }: { lancamento: any, perspectiva?: 'admin' | 'advogado' }) {
   const router = useRouter()
   const [lancamento, setLancamento] = useState(inicial)
   const [loading, setLoading] = useState(false)
+  const [erro, setErro] = useState('')
   // Para o advogado, saída do escritório = entrada para ele
   const tipoOriginal = lancamento.tipo
   const isEntrada = perspectiva === 'advogado' ? true : tipoOriginal === 'entrada'
 
+  // Aplica baixa na parcela vinculada (soma o valor; quita ou deixa parcial)
+  async function aplicarBaixaParcela(supabase: any, lanc: any, userId?: string) {
+    if (lanc.tipo !== 'entrada' || !lanc.parcela_id) return
+    const { data: parcela } = await supabase
+      .from('parcelas').select('valor_previsto, valor_pago').eq('id', lanc.parcela_id).single()
+    if (!parcela) return
+    const previsto = Number(parcela.valor_previsto)
+    const novoPago = Number(parcela.valor_pago || 0) + Number(lanc.valor)
+    const quitada = Math.round(novoPago * 100) >= Math.round(previsto * 100)
+    await supabase.from('parcelas').update({
+      valor_pago: novoPago,
+      status: quitada ? 'pago' : 'parcial',
+      data_pagamento: new Date().toISOString(),
+      forma_pagamento: lanc.forma_pagamento || null,
+      baixa_por: userId || null,
+    }).eq('id', lanc.parcela_id)
+  }
+
+  // Reverte a baixa (subtrai o valor; recalcula status)
+  async function reverterParcela(supabase: any, lanc: any) {
+    if (lanc.tipo !== 'entrada' || !lanc.parcela_id) return
+    const { data: parcela } = await supabase
+      .from('parcelas').select('valor_previsto, valor_pago').eq('id', lanc.parcela_id).single()
+    if (!parcela) return
+    const previsto = Number(parcela.valor_previsto)
+    const novoPago = Math.max(0, Number(parcela.valor_pago || 0) - Number(lanc.valor))
+    let novoStatus: string
+    if (Math.round(novoPago * 100) <= 0) novoStatus = 'pendente'
+    else if (Math.round(novoPago * 100) >= Math.round(previsto * 100)) novoStatus = 'pago'
+    else novoStatus = 'parcial'
+    await supabase.from('parcelas').update({
+      valor_pago: novoPago,
+      status: novoStatus,
+      // zera dados de baixa só quando a parcela volta a ficar totalmente aberta
+      data_pagamento: novoStatus === 'pendente' ? null : undefined,
+      baixa_por: novoStatus === 'pendente' ? null : undefined,
+    }).eq('id', lanc.parcela_id)
+  }
+
   async function darBaixa() {
     setLoading(true)
+    setErro('')
     const supabase = createClient()
-    const { data } = await supabase
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
       .from('lancamentos')
       .update({ status: 'realizado', data_pagamento: new Date().toISOString() })
       .eq('id', lancamento.id)
       .select('*, processo:processos(id, numero_processo, titulo, cliente:clientes(nome)), advogado:profiles!advogado_id(id, nome)')
       .single()
+
+    if (error) { setErro(error.message); setLoading(false); return }
+
+    // dá baixa na parcela vinculada (se houver)
+    await aplicarBaixaParcela(supabase, lancamento, user?.id)
+
     if (data) setLancamento(data)
     setLoading(false)
+    router.refresh()
+  }
+
+  async function estornar() {
+    if (!window.confirm('Estornar este lançamento? Ele sairá do caixa e, se houver parcela vinculada, o valor será devolvido a ela.')) return
+    setLoading(true)
+    setErro('')
+    const supabase = createClient()
+
+    // 1) reverte a parcela ANTES de cancelar (usa os dados atuais do lançamento)
+    await reverterParcela(supabase, lancamento)
+
+    // 2) marca o lançamento como cancelado (mantém histórico; a view já o exclui do caixa)
+    const { data, error } = await supabase
+      .from('lancamentos')
+      .update({ status: 'cancelado' })
+      .eq('id', lancamento.id)
+      .select('*, processo:processos(id, numero_processo, titulo, cliente:clientes(nome)), advogado:profiles!advogado_id(id, nome)')
+      .single()
+
+    if (error) { setErro(error.message); setLoading(false); return }
+    if (data) setLancamento(data)
+    setLoading(false)
+    router.refresh()
   }
 
   const statusColor = lancamento.status === 'realizado' ? 'hsl(142 60% 55%)' : lancamento.status === 'cancelado' ? 'hsl(45 8% 45%)' : 'hsl(38 92% 60%)'
@@ -90,15 +163,32 @@ export default function LancamentoDetalhe({ lancamento: inicial, perspectiva = '
         </div>
       </div>
 
+      {erro && <div style={{ padding: '0.6rem 0.875rem', background: 'hsl(0 72% 51% / 0.1)', border: '1px solid hsl(0 72% 51% / 0.3)', borderRadius: '6px', fontSize: '0.8rem', color: 'hsl(0 72% 65%)', marginBottom: '1rem' }}>{erro}</div>}
+
       {/* Ação de baixa */}
       {lancamento.status === 'previsto' && perspectiva === 'admin' && (
-        <div className="card-base" style={{ padding: '1.25rem 1.5rem', borderColor: 'hsl(43 30% 22%)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+        <div className="card-base" style={{ padding: '1.25rem 1.5rem', borderColor: 'hsl(43 30% 22%)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem' }}>
           <div>
             <div style={{ fontSize: '0.875rem', fontWeight: '500', color: 'hsl(45 20% 88%)' }}>Dar Baixa</div>
-            <div style={{ fontSize: '0.8rem', color: 'hsl(45 8% 45%)', marginTop: '0.1rem' }}>Marcar como realizado</div>
+            <div style={{ fontSize: '0.8rem', color: 'hsl(45 8% 45%)', marginTop: '0.1rem' }}>Marcar como realizado{lancamento.parcela_id ? ' e baixar a parcela vinculada' : ''}</div>
           </div>
           <button onClick={darBaixa} disabled={loading} className="btn-gold" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <CheckCircle size={14} /> {loading ? 'Processando...' : 'Confirmar Pagamento'}
+          </button>
+        </div>
+      )}
+
+      {/* Ação de estorno */}
+      {lancamento.status === 'realizado' && perspectiva === 'admin' && (
+        <div className="card-base" style={{ padding: '1.25rem 1.5rem', borderColor: 'hsl(0 50% 30%)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+          <div>
+            <div style={{ fontSize: '0.875rem', fontWeight: '500', color: 'hsl(45 20% 88%)' }}>Estornar Lançamento</div>
+            <div style={{ fontSize: '0.8rem', color: 'hsl(45 8% 45%)', marginTop: '0.1rem' }}>
+              Cancela o lançamento{lancamento.parcela_id ? ' e devolve o valor à parcela' : ''}
+            </div>
+          </div>
+          <button onClick={estornar} disabled={loading} className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(0 72% 65%)', borderColor: 'hsl(0 50% 35%)' }}>
+            <RotateCcw size={14} /> {loading ? 'Processando...' : 'Estornar'}
           </button>
         </div>
       )}
