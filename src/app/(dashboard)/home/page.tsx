@@ -24,9 +24,7 @@ export default async function HomePage() {
       .select('*')
       .eq('advogado_id', user.id)
       .order('data_pagamento', { ascending: false })
-
     const totalRecebido = (pagamentos || []).reduce((acc: number, p: any) => acc + Number(p.valor || 0), 0)
-
     return (
       <DashboardAdvogado
         profile={profile}
@@ -37,7 +35,12 @@ export default async function HomePage() {
   }
 
   // Admin → dashboard completo
-  const mesAtual = new Date().toISOString().substring(0, 7)
+  // mês atual no fuso de Brasília (servidor Vercel roda em UTC)
+  const mesAtual = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+  }).format(new Date()) // ex.: "2026-06"
 
   const [
     { data: resumoMensal },
@@ -48,7 +51,7 @@ export default async function HomePage() {
     { count: parcelasAtrasadas },
   ] = await Promise.all([
     supabase.from('vw_resumo_mensal').select('*').order('mes', { ascending: false }).limit(12),
-    supabase.from('vw_comparativo_anual').select('*').order('mes_numero'),
+    supabase.from('vw_comparativo_anual').select('*').order('mes'), // ← era 'mes_numero' (coluna inexistente)
     supabase.from('alertas').select('*').eq('resolvido', false).order('created_at', { ascending: false }).limit(10),
     supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('ativo', true),
     supabase.from('processos').select('*', { count: 'exact', head: true }).eq('status', 'ativo'),
