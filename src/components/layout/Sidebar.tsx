@@ -75,9 +75,17 @@ export default function Sidebar({ profile, alertasCount = 0, logoUrl }: SidebarP
       {/* Logo */}
       <div style={{ padding: '1.5rem 1.25rem 1.25rem', borderBottom: '1px solid hsl(220 10% 15%)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'hsl(43 30% 15%)', border: '1px solid hsl(43 60% 42%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Scale size={18} color="hsl(43 72% 58%)" />
-          </div>
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt="Logo"
+              style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover', border: '1px solid hsl(43 60% 42%)', flexShrink: 0 }}
+            />
+          ) : (
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'hsl(43 30% 15%)', border: '1px solid hsl(43 60% 42%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Scale size={18} color="hsl(43 72% 58%)" />
+            </div>
+          )}
           <div>
             <div className="font-display" style={{ fontSize: '0.95rem', fontWeight: '600', color: 'hsl(45 20% 92%)', lineHeight: 1.2 }}>Franco & Vieira</div>
             <div style={{ fontSize: '0.65rem', color: 'hsl(45 8% 40%)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Advogados & Assoc.</div>
@@ -151,7 +159,11 @@ export default function Sidebar({ profile, alertasCount = 0, logoUrl }: SidebarP
           <Menu size={22} />
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Scale size={16} color="hsl(43 72% 58%)" />
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" style={{ width: '20px', height: '20px', borderRadius: '4px', objectFit: 'cover' }} />
+          ) : (
+            <Scale size={16} color="hsl(43 72% 58%)" />
+          )}
           <span className="font-display" style={{ fontSize: '0.9rem', fontWeight: '600', color: 'hsl(45 20% 92%)' }}>Franco & Vieira</span>
         </div>
       </div>
