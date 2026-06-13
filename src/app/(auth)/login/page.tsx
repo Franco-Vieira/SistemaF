@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
@@ -12,6 +12,20 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
+
+  // Busca a logo do escritório (leitura anônima liberada na tabela configuracoes)
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('configuracoes')
+      .select('logo_url')
+      .eq('id', 'default')
+      .single()
+      .then(({ data }) => {
+        if (data?.logo_url) setLogoUrl(data.logo_url)
+      })
+  }, [])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -95,11 +109,20 @@ export default function LoginPage() {
               background: 'hsl(43 30% 15%)',
               border: '1px solid hsl(43 60% 42%)',
               marginBottom: '1.25rem',
+              overflow: 'hidden',
             }}>
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                <path d="M16 4L16 28M10 8L16 4L22 8M10 24L16 28L22 24M6 12H10M22 12H26M6 20H10M22 20H26" stroke="hsl(43 72% 58%)" strokeWidth="1.5" strokeLinecap="round"/>
-                <circle cx="16" cy="16" r="3" stroke="hsl(43 72% 58%)" strokeWidth="1.5"/>
-              </svg>
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                  <path d="M16 4L16 28M10 8L16 4L22 8M10 24L16 28L22 24M6 12H10M22 12H26M6 20H10M22 20H26" stroke="hsl(43 72% 58%)" strokeWidth="1.5" strokeLinecap="round"/>
+                  <circle cx="16" cy="16" r="3" stroke="hsl(43 72% 58%)" strokeWidth="1.5"/>
+                </svg>
+              )}
             </div>
             <h1 className="font-display" style={{
               fontSize: '1.75rem',
