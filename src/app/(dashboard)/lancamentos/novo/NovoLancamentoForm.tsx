@@ -1,33 +1,129 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft } from 'lucide-react'
-import { categoriaLancamento } from '@/lib/utils'
+import { categoriaLancamento, formatCurrency } from '@/lib/utils'
+
+// formata "2026-06-12" -> "12/06/2026" sem passar por fuso
+function fmtVenc(d?: string) {
+  if (!d) return ''
+  const [ano, mes, dia] = d.substring(0, 10).split('-')
+  return `${dia}/${mes}/${ano}`
+}
+function saldoParcela(p: any) {
+  return Number(p.valor_previsto) - Number(p.valor_pago || 0)
+}
 
 export default function NovoLancamentoForm({ processos, advogados }: { processos: any[], advogados: any[] }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
+  const [contratos, setContratos] = useState<any[]>([])
+  const [parcelas, setParcelas] = useState<any[]>([])
+  const [loadingParcelas, setLoadingParcelas] = useState(false)
   const [form, setForm] = useState({
     tipo: 'entrada', categoria: '', descricao: '', valor: '',
     data_competencia: new Date().toISOString().split('T')[0],
-    status: 'previsto', forma_pagamento: '', processo_id: '', advogado_id: '', referencia: '', observacoes: '',
+    status: 'previsto', forma_pagamento: '', processo_id: '', advogado_id: '',
+    contrato_id: '', parcela_id: '', observacoes: '',
   })
+
+  // carrega contratos uma vez (usado só pra filtrar parcelas)
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.from('contratos').select('id, numero_contrato, processo_id').order('numero_contrato')
+      .then(({ data }) => setContratos(data || []))
+  }, [])
+
+  async function handleContratoChange(contratoId: string) {
+    const contrato = contratos.find(c => c.id === contratoId)
+    // vincula também o processo do contrato (lançamento grava processo_id)
+    setForm(p => ({ ...p, contrato_id: contratoId, parcela_id: '', processo_id: contrato?.processo_id || p.processo_id }))
+    setParcelas([])
+    if (!contratoId) return
+    setLoadingParcelas(true)
+    const supabase = createClient()
+    const { data } = await supabase.from('parcelas')
+      .select('id, numero_parcela, valor_previsto, valor_pago, data_vencimento, status, processo_id')
+      .eq('contrato_id', contratoId)
+      .neq('status', 'pago') // só parcelas em aberto/parcial/atrasada
+      .order('numero_parcela')
+    setParcelas(data || [])
+    setLoadingParcelas(false)
+  }
+
+  function handleParcelaChange(parcelaId: string) {
+    const parcela = parcelas.find(p => p.id === parcelaId)
+    setForm(p => ({
+      ...p,
+      parcela_id: parcelaId,
+      // auto-preenche o valor com o saldo restante da parcela
+      valor: parcela ? String(saldoParcela(parcela)) : p.valor,
+      processo_id: parcela?.processo_id || p.processo_id,
+    }))
+  }
+
+  function handleTipoChange(tipo: string) {
+    // limpa campos que não fazem sentido no outro tipo
+    setForm(p => ({
+      ...p,
+      tipo,
+      ...(tipo === 'saida' ? { contrato_id: '', parcela_id: '' } : { advogado_id: '' }),
+    }))
+    if (tipo === 'saida') setParcelas([])
+  }
 
   async function handleSalvar(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setErro('')
     const supabase = createClient()
-    const payload: any = { ...form, valor: Number(form.valor) }
-    if (!payload.processo_id) delete payload.processo_id
-    if (!payload.advogado_id) delete payload.advogado_id
-    if (!payload.forma_pagamento) delete payload.forma_pagamento
-    if (!payload.referencia) delete payload.referencia
-    if (payload.status === 'realizado') payload.data_pagamento = new Date().toISOString()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // payload do lançamento (NÃO inclui contrato_id — não existe na tabela)
+    const payload: any = {
+      tipo: form.tipo,
+      categoria: form.categoria,
+      descricao: form.descricao,
+      valor: Number(form.valor),
+      data_competencia: form.data_competencia,
+      status: form.status,
+      forma_pagamento: form.forma_pagamento || null,
+      processo_id: form.processo_id || null,
+      advogado_id: form.advogado_id || null,
+      parcela_id: form.parcela_id || null,
+      observacoes: form.observacoes || null,
+    }
+    if (form.status === 'realizado') payload.data_pagamento = new Date().toISOString()
+
     const { error } = await supabase.from('lancamentos').insert(payload)
     if (error) { setErro(error.message); setLoading(false); return }
+
+    // ── BAIXA NA PARCELA (só entrada realizada vinculada a parcela) ──
+    if (form.tipo === 'entrada' && form.parcela_id && form.status === 'realizado') {
+      const parcela = parcelas.find(p => p.id === form.parcela_id)
+      if (parcela) {
+        const previsto = Number(parcela.valor_previsto)
+        const novoPago = Number(parcela.valor_pago || 0) + Number(form.valor)
+        // tolerância de centavos pra evitar erro de arredondamento
+        const quitada = Math.round(novoPago * 100) >= Math.round(previsto * 100)
+        const { error: errParcela } = await supabase.from('parcelas').update({
+          valor_pago: novoPago,
+          status: quitada ? 'pago' : 'parcial',
+          data_pagamento: new Date().toISOString(),
+          forma_pagamento: form.forma_pagamento || null,
+          baixa_por: user?.id || null,
+        }).eq('id', form.parcela_id)
+        // se a baixa falhar, o lançamento já foi salvo — avisa mas não trava
+        if (errParcela) {
+          setErro('Lançamento salvo, mas houve erro ao baixar a parcela: ' + errParcela.message)
+          setLoading(false)
+          return
+        }
+      }
+    }
+
     router.push('/lancamentos')
     router.refresh()
   }
@@ -48,7 +144,7 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
           <div className="modal-grid">
             <div>
               <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tipo *</label>
-              <select className="input-base" value={form.tipo} onChange={e => setForm(p => ({ ...p, tipo: e.target.value }))}>
+              <select className="input-base" value={form.tipo} onChange={e => handleTipoChange(e.target.value)}>
                 <option value="entrada">Entrada</option>
                 <option value="saida">Saída</option>
               </select>
@@ -90,6 +186,38 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
                 <option value="cartao">Cartão</option>
               </select>
             </div>
+
+            {/* Contrato + Parcela — só em ENTRADA */}
+            {form.tipo === 'entrada' && (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Contrato</label>
+                  <select className="input-base" value={form.contrato_id} onChange={e => handleContratoChange(e.target.value)}>
+                    <option value="">Nenhum</option>
+                    {contratos.map((c: any) => <option key={c.id} value={c.id}>{c.numero_contrato}</option>)}
+                  </select>
+                </div>
+                {form.contrato_id && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Parcela (dar baixa)</label>
+                    <select className="input-base" value={form.parcela_id} onChange={e => handleParcelaChange(e.target.value)} disabled={loadingParcelas}>
+                      <option value="">{loadingParcelas ? 'Carregando...' : 'Nenhuma'}</option>
+                      {parcelas.map((p: any) => (
+                        <option key={p.id} value={p.id}>
+                          Parcela {p.numero_parcela} • vence {fmtVenc(p.data_vencimento)} • falta {formatCurrency(saldoParcela(p))}{p.status === 'parcial' ? ' (parcial)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {form.parcela_id && form.status !== 'realizado' && (
+                      <p style={{ fontSize: '0.72rem', color: 'hsl(43 72% 58%)', marginTop: '0.35rem' }}>
+                        A baixa só acontece com Status = Realizado.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
             <div>
               <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Processo</label>
               <select className="input-base" value={form.processo_id} onChange={e => setForm(p => ({ ...p, processo_id: e.target.value }))}>
@@ -104,15 +232,6 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
                   <option value="">Nenhum</option>
                   {advogados.map((a: any) => <option key={a.id} value={a.id}>{a.nome}</option>)}
                 </select>
-              </div>
-            )}
-            {form.advogado_id && (
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Referência do Pagamento *
-                  <span style={{ color: 'hsl(43 72% 58%)', marginLeft: '0.4rem', fontWeight: 400 }}>(obrigatório ao vincular advogado)</span>
-                </label>
-                <input className="input-base" required value={form.referencia} onChange={e => setForm(p => ({ ...p, referencia: e.target.value }))} placeholder="Ex: Honorários maio/2026, Repasse processo 001..." />
               </div>
             )}
             <div style={{ gridColumn: '1 / -1' }}>
