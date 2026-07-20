@@ -44,10 +44,12 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
     if (!contratoId) return
     setLoadingParcelas(true)
     const supabase = createClient()
+    // só parcelas realmente em aberto: fora 'pago' (quitada), 'transferida' (saldo já absorvido
+    // pela parcela do mês seguinte) e 'cancelado'
     const { data } = await supabase.from('parcelas')
       .select('id, numero_parcela, valor_previsto, valor_pago, data_vencimento, status, processo_id')
       .eq('contrato_id', contratoId)
-      .neq('status', 'pago') // só parcelas em aberto/parcial/atrasada
+      .in('status', ['pendente', 'pago_parcial', 'atrasado'])
       .order('numero_parcela')
     setParcelas(data || [])
     setLoadingParcelas(false)
@@ -110,7 +112,7 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
         const quitada = Math.round(novoPago * 100) >= Math.round(previsto * 100)
         const { error: errParcela } = await supabase.from('parcelas').update({
           valor_pago: novoPago,
-          status: quitada ? 'pago' : 'parcial',
+          status: quitada ? 'pago' : 'pago_parcial', // valor válido na CHECK constraint (era 'parcial' — bug)
           data_pagamento: new Date().toISOString(),
           forma_pagamento: form.forma_pagamento || null,
           baixa_por: user?.id || null,
@@ -167,6 +169,19 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
             <div>
               <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Valor *</label>
               <input className="input-base" type="number" step="0.01" min="0" required value={form.valor} onChange={e => setForm(p => ({ ...p, valor: e.target.value }))} placeholder="0,00" />
+              {form.parcela_id && Number(form.valor) > 0 && (() => {
+                const parcela = parcelas.find(p => p.id === form.parcela_id)
+                if (!parcela) return null
+                const restante = saldoParcela(parcela) - Number(form.valor)
+                if (restante > 0.004) {
+                  return (
+                    <p style={{ fontSize: '0.72rem', color: 'hsl(38 92% 60%)', marginTop: '0.35rem' }}>
+                      Pagamento parcial — faltarão {formatCurrency(restante)}. Registre o motivo em Observações.
+                    </p>
+                  )
+                }
+                return null
+              })()}
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</label>
@@ -191,7 +206,7 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
             {form.tipo === 'entrada' && (
               <>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Contrato</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Contrato (Cliente)</label>
                   <select className="input-base" value={form.contrato_id} onChange={e => handleContratoChange(e.target.value)}>
                     <option value="">Nenhum</option>
                     {contratos.map((c: any) => <option key={c.id} value={c.id}>{c.numero_contrato}</option>)}
@@ -199,12 +214,12 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
                 </div>
                 {form.contrato_id && (
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Parcela (dar baixa)</label>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Referência (parcela em aberto)</label>
                     <select className="input-base" value={form.parcela_id} onChange={e => handleParcelaChange(e.target.value)} disabled={loadingParcelas}>
-                      <option value="">{loadingParcelas ? 'Carregando...' : 'Nenhuma'}</option>
+                      <option value="">{loadingParcelas ? 'Carregando...' : parcelas.length === 0 ? 'Nenhuma parcela em aberto' : 'Nenhuma'}</option>
                       {parcelas.map((p: any) => (
                         <option key={p.id} value={p.id}>
-                          Parcela {p.numero_parcela} • vence {fmtVenc(p.data_vencimento)} • falta {formatCurrency(saldoParcela(p))}{p.status === 'parcial' ? ' (parcial)' : ''}
+                          Ref. {fmtVenc(p.data_vencimento)} • falta {formatCurrency(saldoParcela(p))}{p.status === 'pago_parcial' ? ' (parcial)' : p.status === 'atrasado' ? ' (atrasada)' : ''}
                         </option>
                       ))}
                     </select>
@@ -236,7 +251,7 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
             )}
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Observações</label>
-              <textarea className="input-base" value={form.observacoes} onChange={e => setForm(p => ({ ...p, observacoes: e.target.value }))} placeholder="Observações adicionais..." rows={2} />
+              <textarea className="input-base" value={form.observacoes} onChange={e => setForm(p => ({ ...p, observacoes: e.target.value }))} placeholder="Ex: cliente pagou parcial, restante combinado para dia X" rows={2} />
             </div>
           </div>
           {erro && <div style={{ padding: '0.6rem', background: 'hsl(0 72% 51% / 0.1)', border: '1px solid hsl(0 72% 51% / 0.3)', borderRadius: '6px', fontSize: '0.8rem', color: 'hsl(0 72% 65%)' }}>{erro}</div>}
