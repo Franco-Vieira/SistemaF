@@ -60,8 +60,9 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
     setForm(p => ({
       ...p,
       parcela_id: parcelaId,
-      // auto-preenche o valor com o saldo restante da parcela
-      valor: parcela ? String(saldoParcela(parcela)) : p.valor,
+      // só SUGERE o valor cheio se o campo ainda estiver vazio — nunca sobrescreve
+      // um valor que a pessoa já digitou manualmente (ex: pagamento parcial)
+      valor: parcela && !p.valor ? String(saldoParcela(parcela)) : p.valor,
       processo_id: parcela?.processo_id || p.processo_id,
     }))
   }
