@@ -25,7 +25,7 @@ export default function LancamentoDetalhe({ lancamento: inicial, perspectiva = '
     const quitada = Math.round(novoPago * 100) >= Math.round(previsto * 100)
     await supabase.from('parcelas').update({
       valor_pago: novoPago,
-      status: quitada ? 'pago' : 'parcial',
+      status: quitada ? 'pago' : 'pago_parcial', // valor válido na CHECK constraint (era 'parcial' — bug)
       data_pagamento: new Date().toISOString(),
       forma_pagamento: lanc.forma_pagamento || null,
       baixa_por: userId || null,
@@ -43,7 +43,7 @@ export default function LancamentoDetalhe({ lancamento: inicial, perspectiva = '
     let novoStatus: string
     if (Math.round(novoPago * 100) <= 0) novoStatus = 'pendente'
     else if (Math.round(novoPago * 100) >= Math.round(previsto * 100)) novoStatus = 'pago'
-    else novoStatus = 'parcial'
+    else novoStatus = 'pago_parcial' // valor válido na CHECK constraint (era 'parcial' — bug)
     await supabase.from('parcelas').update({
       valor_pago: novoPago,
       status: novoStatus,
