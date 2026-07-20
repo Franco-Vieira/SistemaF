@@ -60,9 +60,7 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
     setForm(p => ({
       ...p,
       parcela_id: parcelaId,
-      // só SUGERE o valor cheio se o campo ainda estiver vazio — nunca sobrescreve
-      // um valor que a pessoa já digitou manualmente (ex: pagamento parcial)
-      valor: parcela && !p.valor ? String(saldoParcela(parcela)) : p.valor,
+      // NÃO mexe mais no valor — o campo é 100% controlado pela pessoa, em qualquer ordem de preenchimento
       processo_id: parcela?.processo_id || p.processo_id,
     }))
   }
@@ -224,9 +222,18 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
                         </option>
                       ))}
                     </select>
+                    {form.parcela_id && (() => {
+                      const parcela = parcelas.find(p => p.id === form.parcela_id)
+                      if (!parcela) return null
+                      return (
+                        <p style={{ fontSize: '0.72rem', color: 'hsl(45 8% 50%)', marginTop: '0.35rem' }}>
+                          Saldo em aberto dessa parcela: <strong style={{ color: 'hsl(45 15% 75%)' }}>{formatCurrency(saldoParcela(parcela))}</strong> — digite o valor pago no campo Valor acima.
+                        </p>
+                      )
+                    })()}
                     {form.parcela_id && form.status !== 'realizado' && (
-                      <p style={{ fontSize: '0.72rem', color: 'hsl(43 72% 58%)', marginTop: '0.35rem' }}>
-                        A baixa só acontece com Status = Realizado.
+                      <p style={{ fontSize: '0.75rem', color: 'hsl(38 92% 60%)', marginTop: '0.35rem', fontWeight: 600 }}>
+                        ⚠ A baixa só acontece com Status = Realizado. Confira o campo Status acima.
                       </p>
                     )}
                   </div>
