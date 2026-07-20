@@ -10,6 +10,14 @@ const SECRETARIA_ALLOWED = [
 ]
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Rotas de cron se autenticam sozinhas via CRON_SECRET (header Authorization),
+  // não por sessão de usuário — precisam passar direto, sem checagem de login/role.
+  if (pathname.startsWith('/api/cron')) {
+    return NextResponse.next()
+  }
+
   let supabaseResponse = NextResponse.next({
     request: { headers: request.headers },
   })
@@ -27,9 +35,7 @@ export async function proxy(request: NextRequest) {
       },
     }
   )
-
   const { data: { user } } = await supabase.auth.getUser()
-  const { pathname } = request.nextUrl
   const isPublicRoute = pathname.startsWith('/login')
 
   // Não autenticado → login
