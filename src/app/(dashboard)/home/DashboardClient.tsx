@@ -6,11 +6,19 @@ import {
   Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { TrendingUp, TrendingDown, Users, FolderOpen, AlertTriangle, Calendar, FileText } from 'lucide-react'
+import { TrendingUp, TrendingDown, Users, FolderOpen, AlertTriangle, Calendar, FileText, Wallet, Clock } from 'lucide-react'
 import type { Profile, ResumoMensal, ComparativoAnual, Alerta } from '@/types'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import Link from 'next/link'
+
+interface ReceberMensal {
+  mes: string // "YYYY-MM"
+  valor_previsto_mes: number
+  valor_recebido_mes: number
+  valor_nao_recebido_mes: number
+  qtd_atrasadas_mes: number
+}
 
 interface DashboardClientProps {
   role: 'admin' | 'advogado' | 'secretaria'
@@ -22,12 +30,15 @@ interface DashboardClientProps {
   totalProcessos?: number
   parcelasAtrasadas?: number
   mesAtual?: string
+  receberMensal?: ReceberMensal[]
+  totalAReceberGeral?: number
 }
 
 const GOLD = 'hsl(43, 72%, 58%)'
 const DANGER = 'hsl(0, 72%, 51%)'
 const SUCCESS = 'hsl(142, 60%, 45%)'
 const MUTED = 'hsl(45, 8%, 30%)'
+const INFO = 'hsl(210, 80%, 55%)'
 
 function StatCard({ label, value, icon: Icon, color, sub }: {
   label: string, value: string | number, icon: any, color: string, sub?: string
@@ -124,9 +135,15 @@ export default function DashboardClient(props: DashboardClientProps) {
   if (role === 'secretaria') return <PainelSecretaria profile={profile} />
 
   const [mesSelecionado, setMesSelecionado] = useState(props.mesAtual || '')
-  const { resumoMensal = [], comparativoAnual = [], alertas = [], totalClientes = 0, totalProcessos = 0, parcelasAtrasadas = 0 } = props
+  const {
+    resumoMensal = [], comparativoAnual = [], alertas = [],
+    totalClientes = 0, totalProcessos = 0, parcelasAtrasadas = 0,
+    receberMensal = [], totalAReceberGeral = 0,
+  } = props
 
   const resumoFiltrado = resumoMensal.find(r => r.mes?.startsWith(mesSelecionado)) || resumoMensal[0]
+  // vw_receber_mensal já devolve "mes" como texto "YYYY-MM" puro — comparação direta, sem risco de timezone
+  const receberFiltrado = receberMensal.find(r => r.mes === mesSelecionado)
 
   const mesesDisponiveis = resumoMensal.map(r => {
     const value = r.mes?.substring(0, 7) || '' // "2026-06" (sem conversão de fuso)
@@ -167,11 +184,36 @@ export default function DashboardClient(props: DashboardClientProps) {
         </div>
       </div>
 
+      {/* ── A RECEBER: total geral (sem filtro de mês) + recebido/não recebido do mês selecionado ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+        <StatCard
+          label="A Receber (Total Geral)"
+          value={formatCurrency(totalAReceberGeral)}
+          icon={Wallet}
+          color={GOLD}
+          sub="Soma de tudo em aberto, todos os meses"
+        />
+        <StatCard
+          label="A Receber no Mês"
+          value={formatCurrency(Number(receberFiltrado?.valor_nao_recebido_mes || 0))}
+          icon={Clock}
+          color={DANGER}
+          sub={receberFiltrado?.qtd_atrasadas_mes ? `${receberFiltrado.qtd_atrasadas_mes} parcela(s) atrasada(s)` : 'Nenhuma parcela atrasada'}
+        />
+        <StatCard
+          label="Recebido no Mês"
+          value={formatCurrency(Number(receberFiltrado?.valor_recebido_mes || 0))}
+          icon={TrendingUp}
+          color={SUCCESS}
+          sub={`Previsto do mês: ${formatCurrency(Number(receberFiltrado?.valor_previsto_mes || 0))}`}
+        />
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
         <StatCard label="Entradas Realizadas" value={formatCurrency(Number(resumoFiltrado?.entradas_realizadas || 0))} icon={TrendingUp} color={SUCCESS} sub={`Previsto: ${formatCurrency(Number(resumoFiltrado?.entradas_previstas || 0))}`} />
         <StatCard label="Saídas Realizadas" value={formatCurrency(Number(resumoFiltrado?.saidas_realizadas || 0))} icon={TrendingDown} color={DANGER} sub={`Previsto: ${formatCurrency(Number(resumoFiltrado?.saidas_previstas || 0))}`} />
         <StatCard label="Clientes Ativos" value={totalClientes} icon={Users} color={GOLD} />
-        <StatCard label="Processos Ativos" value={totalProcessos} icon={FolderOpen} color="hsl(210 80% 55%)" sub={parcelasAtrasadas > 0 ? `${parcelasAtrasadas} parcela(s) atrasada(s)` : undefined} />
+        <StatCard label="Processos Ativos" value={totalProcessos} icon={FolderOpen} color={INFO} sub={parcelasAtrasadas > 0 ? `${parcelasAtrasadas} parcela(s) atrasada(s)` : undefined} />
       </div>
 
       <div className="card-base" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
