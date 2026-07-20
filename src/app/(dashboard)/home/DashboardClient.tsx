@@ -8,7 +8,7 @@ import {
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { TrendingUp, TrendingDown, Users, FolderOpen, AlertTriangle, Calendar, FileText, Wallet, Clock } from 'lucide-react'
 import type { Profile, ResumoMensal, ComparativoAnual, Alerta } from '@/types'
-import { format, parseISO } from 'date-fns'
+import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import Link from 'next/link'
 
@@ -18,6 +18,15 @@ interface ReceberMensal {
   valor_recebido_mes: number
   valor_nao_recebido_mes: number
   qtd_atrasadas_mes: number
+}
+
+interface CobrancaPendente {
+  id: string
+  valor_previsto: number
+  valor_pago: number
+  data_vencimento: string
+  status: string
+  processo?: { numero_processo: string, cliente?: { nome: string } }
 }
 
 interface DashboardClientProps {
@@ -32,6 +41,7 @@ interface DashboardClientProps {
   mesAtual?: string
   receberMensal?: ReceberMensal[]
   totalAReceberGeral?: number
+  cobrancasPendentes?: CobrancaPendente[]
 }
 
 const GOLD = 'hsl(43, 72%, 58%)'
@@ -71,6 +81,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       ))}
     </div>
   )
+}
+
+// formata "2026-07-20" -> "20/07" sem passar por fuso
+function fmtDiaMes(d?: string) {
+  if (!d) return ''
+  const [, mes, dia] = d.substring(0, 10).split('-')
+  return `${dia}/${mes}`
 }
 
 // ── PAINEL SECRETARIA ──────────────────────────────────────────
@@ -138,23 +155,27 @@ export default function DashboardClient(props: DashboardClientProps) {
   const {
     resumoMensal = [], comparativoAnual = [], alertas = [],
     totalClientes = 0, totalProcessos = 0, parcelasAtrasadas = 0,
-    receberMensal = [], totalAReceberGeral = 0,
+    receberMensal = [], totalAReceberGeral = 0, cobrancasPendentes = [],
   } = props
 
-  const resumoFiltrado = resumoMensal.find(r => r.mes?.startsWith(mesSelecionado)) || resumoMensal[0]
-  // vw_receber_mensal já devolve "mes" como texto "YYYY-MM" puro — comparação direta, sem risco de timezone
+  const resumoFiltrado = resumoMensal.find(r => r.mes?.startsWith(mesSelecionado))
   const receberFiltrado = receberMensal.find(r => r.mes === mesSelecionado)
 
-  const mesesDisponiveis = resumoMensal.map(r => {
-    const value = r.mes?.substring(0, 7) || '' // "2026-06" (sem conversão de fuso)
-    let label = ''
-    if (value) {
+  // ── Lista de meses do seletor: união de resumoMensal (lançamentos) + receberMensal (parcelas) ──
+  // Antes só olhava lançamentos, então ficava vazio se nada tivesse sido lançado ainda,
+  // mesmo já existindo parcelas/cobranças previstas.
+  const chavesMeses = new Set<string>()
+  resumoMensal.forEach(r => { if (r.mes) chavesMeses.add(r.mes.substring(0, 7)) })
+  receberMensal.forEach(r => { if (r.mes) chavesMeses.add(r.mes) })
+  if (props.mesAtual) chavesMeses.add(props.mesAtual)
+
+  const mesesDisponiveis = Array.from(chavesMeses)
+    .sort((a, b) => b.localeCompare(a)) // mais recente primeiro
+    .map(value => {
       const [ano, mes] = value.split('-').map(Number)
-      // data montada no fuso local evita o deslocamento de -1 mês causado pelo timestamp UTC
-      label = format(new Date(ano, mes - 1, 1), 'MMMM yyyy', { locale: ptBR })
-    }
-    return { value, label }
-  })
+      const label = format(new Date(ano, mes - 1, 1), 'MMMM yyyy', { locale: ptBR })
+      return { value, label }
+    })
 
   const dadosGrafico = comparativoAnual.map(r => ({
     mes: r.mes_nome,
@@ -162,6 +183,8 @@ export default function DashboardClient(props: DashboardClientProps) {
     'Saídas': Number(r.saidas_realizadas),
     Saldo: Number(r.saldo_realizado),
   }))
+
+  const hoje = new Date().toISOString().substring(0, 10)
 
   return (
     <div className="animate-fade-in">
@@ -270,18 +293,45 @@ export default function DashboardClient(props: DashboardClientProps) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
             <AlertTriangle size={15} color="hsl(0 72% 65%)" />
             <h2 style={{ fontSize: '0.9rem', fontWeight: '600', color: 'hsl(45 20% 88%)' }}>Alertas Pendentes</h2>
-            {alertas.length > 0 && <span className="badge badge-danger" style={{ marginLeft: 'auto' }}>{alertas.length}</span>}
+            {(alertas.length + cobrancasPendentes.length) > 0 && (
+              <span className="badge badge-danger" style={{ marginLeft: 'auto' }}>{alertas.length + cobrancasPendentes.length}</span>
+            )}
           </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {alertas.length === 0 ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', overflowY: 'auto' }}>
+            {alertas.length === 0 && cobrancasPendentes.length === 0 ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(45 8% 40%)', fontSize: '0.8rem', textAlign: 'center', padding: '1.5rem 0' }}>
                 ✓ Nenhum alerta pendente
               </div>
-            ) : alertas.map((a: any) => (
-              <div key={a.id} style={{ padding: '0.625rem 0.75rem', background: 'hsl(0 72% 51% / 0.08)', border: '1px solid hsl(0 72% 51% / 0.2)', borderRadius: '6px', fontSize: '0.78rem', color: 'hsl(0 72% 70%)', lineHeight: 1.4 }}>
-                {a.mensagem}
-              </div>
-            ))}
+            ) : (
+              <>
+                {alertas.map((a: any) => (
+                  <div key={a.id} style={{ padding: '0.625rem 0.75rem', background: 'hsl(0 72% 51% / 0.08)', border: '1px solid hsl(0 72% 51% / 0.2)', borderRadius: '6px', fontSize: '0.78rem', color: 'hsl(0 72% 70%)', lineHeight: 1.4 }}>
+                    {a.mensagem}
+                  </div>
+                ))}
+                {cobrancasPendentes.map((c) => {
+                  const saldo = Number(c.valor_previsto) - Number(c.valor_pago || 0)
+                  const atrasada = c.data_vencimento < hoje
+                  const nomeCliente = c.processo?.cliente?.nome || 'Cliente não vinculado'
+                  return (
+                    <div key={c.id} style={{
+                      padding: '0.625rem 0.75rem',
+                      background: atrasada ? 'hsl(0 72% 51% / 0.08)' : 'hsl(38 92% 60% / 0.08)',
+                      border: `1px solid ${atrasada ? 'hsl(0 72% 51% / 0.2)' : 'hsl(38 92% 60% / 0.25)'}`,
+                      borderRadius: '6px', fontSize: '0.78rem', lineHeight: 1.4,
+                      color: atrasada ? 'hsl(0 72% 70%)' : 'hsl(38 92% 70%)',
+                      display: 'flex', justifyContent: 'space-between', gap: '0.5rem',
+                    }}>
+                      <span>
+                        <strong>{nomeCliente}</strong> — {atrasada ? 'atrasado desde' : 'vence em'} {fmtDiaMes(c.data_vencimento)}
+                        {c.status === 'pago_parcial' && ' (pagamento parcial)'}
+                      </span>
+                      <span style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{formatCurrency(saldo)}</span>
+                    </div>
+                  )
+                })}
+              </>
+            )}
           </div>
         </div>
       </div>
