@@ -50,6 +50,7 @@ export default async function HomePage() {
     { count: parcelasAtrasadas },
     { data: receberMensal },
     { data: parcelasEmAberto },
+    { data: cobrancasPendentes },
   ] = await Promise.all([
     supabase.from('vw_resumo_mensal').select('*').order('mes', { ascending: false }).limit(12),
     supabase.from('vw_comparativo_anual').select('*').order('mes'),
@@ -57,10 +58,15 @@ export default async function HomePage() {
     supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('ativo', true),
     supabase.from('processos').select('*', { count: 'exact', head: true }).eq('status', 'ativo'),
     supabase.from('parcelas').select('*', { count: 'exact', head: true }).eq('status', 'atrasado'),
-    // "a receber" agrupado por mês de vencimento (não sofre bug de timezone: data_vencimento é `date` puro)
     supabase.from('vw_receber_mensal').select('*').order('mes', { ascending: false }).limit(12),
-    // total geral em aberto, sem filtro de mês (soma feita aqui pra não depender de agregação remota)
     supabase.from('parcelas').select('valor_previsto, valor_pago').in('status', ['pendente', 'pago_parcial', 'atrasado']),
+    // parcelas em aberto com nome do cliente, pra virar "lembrete" no card de Alertas —
+    // não depende de nenhum lançamento ter sido feito, só olha o que está pendente de baixa
+    supabase.from('parcelas')
+      .select('id, valor_previsto, valor_pago, data_vencimento, status, processo:processos(numero_processo, cliente:clientes(nome))')
+      .in('status', ['pendente', 'pago_parcial', 'atrasado'])
+      .order('data_vencimento', { ascending: true })
+      .limit(10),
   ])
 
   const totalAReceberGeral = (parcelasEmAberto || []).reduce(
@@ -81,6 +87,7 @@ export default async function HomePage() {
       mesAtual={mesAtual}
       receberMensal={receberMensal || []}
       totalAReceberGeral={totalAReceberGeral}
+      cobrancasPendentes={cobrancasPendentes || []}
     />
   )
 }
