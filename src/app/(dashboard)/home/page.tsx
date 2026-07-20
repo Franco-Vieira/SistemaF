@@ -1,3 +1,4 @@
+
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import DashboardClient from './DashboardClient'
@@ -87,7 +88,10 @@ export default async function HomePage() {
       mesAtual={mesAtual}
       receberMensal={receberMensal || []}
       totalAReceberGeral={totalAReceberGeral}
-      cobrancasPendentes={cobrancasPendentes || []}
+      // cast: o types.ts do projeto não tem os relacionamentos de FK bem tipados,
+      // então o Supabase infere "processo"/"cliente" como array em vez de objeto único.
+      // O dado real vem como objeto (many-to-one), o DashboardClient já lê assim.
+      cobrancasPendentes={(cobrancasPendentes || []) as any}
     />
   )
 }
