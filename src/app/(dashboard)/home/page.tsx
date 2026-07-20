@@ -7,7 +7,6 @@ export default async function HomePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-
   const { data: profile } = await supabase
     .from('profiles').select('*').eq('id', user.id).single()
   if (!profile) redirect('/login')
@@ -40,7 +39,7 @@ export default async function HomePage() {
     timeZone: 'America/Sao_Paulo',
     year: 'numeric',
     month: '2-digit',
-  }).format(new Date()) // ex.: "2026-06"
+  }).format(new Date()) // ex.: "2026-07"
 
   const [
     { data: resumoMensal },
@@ -49,14 +48,25 @@ export default async function HomePage() {
     { count: totalClientes },
     { count: totalProcessos },
     { count: parcelasAtrasadas },
+    { data: receberMensal },
+    { data: parcelasEmAberto },
   ] = await Promise.all([
     supabase.from('vw_resumo_mensal').select('*').order('mes', { ascending: false }).limit(12),
-    supabase.from('vw_comparativo_anual').select('*').order('mes'), // ← era 'mes_numero' (coluna inexistente)
+    supabase.from('vw_comparativo_anual').select('*').order('mes'),
     supabase.from('alertas').select('*').eq('resolvido', false).order('created_at', { ascending: false }).limit(10),
     supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('ativo', true),
     supabase.from('processos').select('*', { count: 'exact', head: true }).eq('status', 'ativo'),
     supabase.from('parcelas').select('*', { count: 'exact', head: true }).eq('status', 'atrasado'),
+    // "a receber" agrupado por mês de vencimento (não sofre bug de timezone: data_vencimento é `date` puro)
+    supabase.from('vw_receber_mensal').select('*').order('mes', { ascending: false }).limit(12),
+    // total geral em aberto, sem filtro de mês (soma feita aqui pra não depender de agregação remota)
+    supabase.from('parcelas').select('valor_previsto, valor_pago').in('status', ['pendente', 'pago_parcial', 'atrasado']),
   ])
+
+  const totalAReceberGeral = (parcelasEmAberto || []).reduce(
+    (acc: number, p: any) => acc + (Number(p.valor_previsto) - Number(p.valor_pago || 0)),
+    0
+  )
 
   return (
     <DashboardClient
@@ -69,6 +79,8 @@ export default async function HomePage() {
       totalProcessos={totalProcessos || 0}
       parcelasAtrasadas={parcelasAtrasadas || 0}
       mesAtual={mesAtual}
+      receberMensal={receberMensal || []}
+      totalAReceberGeral={totalAReceberGeral}
     />
   )
 }
