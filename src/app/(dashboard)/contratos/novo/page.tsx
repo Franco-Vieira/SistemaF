@@ -8,7 +8,18 @@ export default async function NovoContratoPage() {
   if (!user) redirect('/login')
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (!profile || !['admin', 'secretaria'].includes(profile.role)) redirect('/home')
+
+  const { data: clientes } = await supabase
+    .from('clientes')
+    .select('id, nome, nome_empresa, tipo_processo')
+    .eq('ativo', true)
+    .order('nome')
+
   const { data: processos } = await supabase
-    .from('processos').select('id, numero_processo, titulo, cliente:clientes(nome)').eq('status', 'ativo').order('numero_processo')
-  return <NovoContratoForm processos={processos || []} />
+    .from('processos')
+    .select('id, numero_processo, titulo, cliente_id')
+    .eq('status', 'ativo')
+    .order('numero_processo')
+
+  return <NovoContratoForm clientes={clientes || []} processos={processos || []} />
 }
