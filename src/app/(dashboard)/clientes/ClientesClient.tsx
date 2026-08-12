@@ -111,7 +111,7 @@ export default function ClientesClient({ clientes: initialClientes, advogados }:
                 {busca ? 'Nenhum cliente encontrado para esta busca.' : 'Nenhum cliente cadastrado ainda.'}
               </td></tr>
             ) : filtrados.map(c => (
-              <tr key={c.id}>
+              <tr key={c.id} onClick={() => router.push(`/clientes/${c.id}`)} style={{ cursor: 'pointer' }}>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'hsl(43 30% 18%)', border: '1px solid hsl(43 40% 30%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '600', color: 'hsl(43 72% 58%)', flexShrink: 0 }}>
@@ -131,10 +131,10 @@ export default function ClientesClient({ clientes: initialClientes, advogados }:
                 <td style={{ color: 'hsl(45 8% 50%)', fontSize: '0.8rem' }}>{formatDate(c.created_at)}</td>
                 <td>
                   <div style={{ display: 'flex', gap: '0.4rem' }}>
-                    <button onClick={() => router.push(`/clientes/${c.id}/editar`)} style={{ padding: '0.25rem 0.5rem', background: 'none', border: '1px solid hsl(43 40% 30%)', borderRadius: '6px', cursor: 'pointer', color: 'hsl(43 72% 58%)', display: 'flex', alignItems: 'center' }}>
+                    <button onClick={(e) => { e.stopPropagation(); router.push(`/clientes/${c.id}/editar`) }} style={{ padding: '0.25rem 0.5rem', background: 'none', border: '1px solid hsl(43 40% 30%)', borderRadius: '6px', cursor: 'pointer', color: 'hsl(43 72% 58%)', display: 'flex', alignItems: 'center' }}>
                       <Pencil size={12} />
                     </button>
-                    <button onClick={() => setConfirmDelete(c)} style={{ padding: '0.25rem 0.5rem', background: 'none', border: '1px solid hsl(0 72% 51% / 0.4)', borderRadius: '6px', cursor: 'pointer', color: 'hsl(0 72% 65%)', display: 'flex', alignItems: 'center' }}>
+                    <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(c) }} style={{ padding: '0.25rem 0.5rem', background: 'none', border: '1px solid hsl(0 72% 51% / 0.4)', borderRadius: '6px', cursor: 'pointer', color: 'hsl(0 72% 65%)', display: 'flex', alignItems: 'center' }}>
                       <Trash2 size={12} />
                     </button>
                   </div>
