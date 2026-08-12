@@ -11,6 +11,7 @@ export default async function ClientesPage() {
   const { data: clientes } = await supabase
     .from('clientes')
     .select('*, advogado_origem:profiles!advogado_origem_id(id, nome)')
+    .eq('ativo', true)
     .order('nome', { ascending: true })
   const { data: advogados } = await supabase
     .from('profiles')
