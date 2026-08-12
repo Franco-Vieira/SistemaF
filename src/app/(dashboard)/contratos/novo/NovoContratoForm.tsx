@@ -1,12 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft } from 'lucide-react'
 
 // Calcula a data de vencimento da 1ª parcela de um contrato Mensal.
-// Usa o dia informado no mês de início; se esse dia já passou em relação
-// à data de início, joga pro mês seguinte.
 function primeiroVencimentoMensal(dataInicio: string, diaVencimento: number): string {
   const [ano, mes, dia] = dataInicio.split('-').map(Number)
   let anoAlvo = ano
@@ -20,12 +18,15 @@ function primeiroVencimentoMensal(dataInicio: string, diaVencimento: number): st
   return `${anoAlvo}-${String(mesAlvo).padStart(2, '0')}-${String(diaFinal).padStart(2, '0')}`
 }
 
-export default function NovoContratoForm({ processos }: { processos: any[] }) {
+interface Cliente { id: string; nome: string; nome_empresa: string | null; tipo_processo: string | null }
+interface Processo { id: string; numero_processo: string; titulo: string; cliente_id: string }
+
+export default function NovoContratoForm({ clientes, processos }: { clientes: Cliente[], processos: Processo[] }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
   const [form, setForm] = useState({
-    numero_contrato: '', processo_id: '', tipo: 'mensalidade', valor_total: '',
+    numero_contrato: '', cliente_id: '', processo_id: '', tipo: 'mensalidade', valor_total: '',
     numero_parcelas: '1', data_inicio: new Date().toISOString().split('T')[0],
     data_fim: '', dia_vencimento: '', data_vencimento_fixo: '', observacoes: '',
   })
@@ -33,21 +34,41 @@ export default function NovoContratoForm({ processos }: { processos: any[] }) {
   const isMensal = form.tipo === 'mensalidade'
   const isFixo = form.tipo === 'avista'
 
+  const clienteSelecionado = useMemo(
+    () => clientes.find(c => c.id === form.cliente_id) || null,
+    [clientes, form.cliente_id]
+  )
+  const isJudicial = clienteSelecionado?.tipo_processo === 'judicial'
+  const isExtrajudicial = clienteSelecionado?.tipo_processo === 'extrajudicial'
+
+  const processosDoCliente = useMemo(
+    () => processos.filter(p => p.cliente_id === form.cliente_id),
+    [processos, form.cliente_id]
+  )
+
+  function handleClienteChange(clienteId: string) {
+    setForm(p => ({ ...p, cliente_id: clienteId, processo_id: '' }))
+  }
+
   async function handleSalvar(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true)
     setErro('')
+
+    if (!form.cliente_id) { setErro('Selecione um cliente.'); return }
+    if (isJudicial && !form.processo_id) { setErro('Este cliente é Judicial: selecione o processo vinculado ao contrato.'); return }
+
+    setLoading(true)
     const supabase = createClient()
 
     const payload: any = {
       numero_contrato: form.numero_contrato,
-      processo_id: form.processo_id,
+      cliente_id: form.cliente_id,
+      processo_id: isJudicial ? form.processo_id : null,
       tipo: form.tipo,
       valor_total: Number(form.valor_total),
       data_inicio: form.data_inicio,
       data_fim: form.data_fim || null,
       observacoes: form.observacoes || null,
-      // campos mutuamente exclusivos por modalidade (constraint do banco exige isso)
       dia_vencimento: isMensal ? Number(form.dia_vencimento) : null,
       data_vencimento_fixo: isFixo ? form.data_vencimento_fixo : null,
       numero_parcelas: isMensal ? Number(form.numero_parcelas) : 1,
@@ -63,7 +84,7 @@ export default function NovoContratoForm({ processos }: { processos: any[] }) {
 
     const { error: errParcela } = await supabase.from('parcelas').insert({
       contrato_id: contrato.id,
-      processo_id: contrato.processo_id,
+      processo_id: contrato.processo_id, // null quando extrajudicial — coluna já aceita null
       numero_parcela: 1,
       valor_previsto: Number(form.valor_total),
       valor_pago: 0,
@@ -105,13 +126,45 @@ export default function NovoContratoForm({ processos }: { processos: any[] }) {
                 <option value="avista">Fixo</option>
               </select>
             </div>
+
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Processo *</label>
-              <select className="input-base" required value={form.processo_id} onChange={e => setForm(p => ({ ...p, processo_id: e.target.value }))}>
-                <option value="">Selecione o processo...</option>
-                {processos.map((p: any) => <option key={p.id} value={p.id}>{p.numero_processo} — {p.cliente?.nome}</option>)}
+              <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cliente *</label>
+              <select className="input-base" required value={form.cliente_id} onChange={e => handleClienteChange(e.target.value)}>
+                <option value="">Selecione o cliente...</option>
+                {clientes.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome_empresa || c.nome} {c.tipo_processo ? `— ${c.tipo_processo === 'judicial' ? 'Judicial' : 'Extrajudicial'}` : '(tipo não definido)'}
+                  </option>
+                ))}
               </select>
+              {clienteSelecionado && !clienteSelecionado.tipo_processo && (
+                <p style={{ fontSize: '0.75rem', color: 'hsl(0 72% 65%)', marginTop: '0.4rem' }}>
+                  Este cliente não tem "Tipo de Processo" definido. Edite o cadastro dele antes de continuar.
+                </p>
+              )}
             </div>
+
+            {isJudicial && (
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Processo *</label>
+                <select className="input-base" required value={form.processo_id} onChange={e => setForm(p => ({ ...p, processo_id: e.target.value }))}>
+                  <option value="">Selecione o processo...</option>
+                  {processosDoCliente.map(p => <option key={p.id} value={p.id}>{p.numero_processo} — {p.titulo}</option>)}
+                </select>
+                {processosDoCliente.length === 0 && (
+                  <p style={{ fontSize: '0.75rem', color: 'hsl(0 72% 65%)', marginTop: '0.4rem' }}>
+                    Este cliente ainda não tem processo cadastrado. Cadastre o processo antes de vincular o contrato.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {isExtrajudicial && (
+              <div style={{ gridColumn: '1 / -1', padding: '0.6rem 0.875rem', background: 'hsl(43 30% 18% / 0.4)', border: '1px solid hsl(43 40% 30%)', borderRadius: '6px', fontSize: '0.8rem', color: 'hsl(45 8% 65%)' }}>
+                Cliente extrajudicial — este contrato será vinculado direto ao cliente, sem processo.
+              </div>
+            )}
+
             <div>
               <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 {isMensal ? 'Valor Mensal *' : 'Valor Fixo *'}
