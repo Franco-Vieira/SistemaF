@@ -32,7 +32,9 @@ export default function ContratosClient({ contratos: initialContratos, processos
   const filtrados = contratos.filter(c =>
     c.numero_contrato?.toLowerCase().includes(busca.toLowerCase()) ||
     c.processo?.titulo?.toLowerCase().includes(busca.toLowerCase()) ||
-    c.processo?.numero_processo?.toLowerCase().includes(busca.toLowerCase())
+    c.processo?.numero_processo?.toLowerCase().includes(busca.toLowerCase()) ||
+    c.cliente?.nome?.toLowerCase().includes(busca.toLowerCase()) ||
+    c.cliente?.nome_empresa?.toLowerCase().includes(busca.toLowerCase())
   )
 
   async function carregarParcelas(contratoId: string) {
@@ -116,8 +118,12 @@ export default function ContratosClient({ contratos: initialContratos, processos
                   <div style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'hsl(43 72% 65%)' }}>{c.numero_contrato}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.65rem', color: 'hsl(45 8% 40%)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Processo</div>
-                  <div style={{ fontSize: '0.8rem', color: 'hsl(45 20% 80%)' }}>{c.processo?.numero_processo} — {c.processo?.cliente?.nome}</div>
+                  <div style={{ fontSize: '0.65rem', color: 'hsl(45 8% 40%)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Cliente / Processo</div>
+                  <div style={{ fontSize: '0.8rem', color: 'hsl(45 20% 80%)' }}>
+                    {c.processo
+                      ? `${c.processo.numero_processo} — ${c.processo.cliente?.nome}`
+                      : `${c.cliente?.nome_empresa || c.cliente?.nome || '—'} (Extrajudicial)`}
+                  </div>
                 </div>
                 <div>
                   <div style={{ fontSize: '0.65rem', color: 'hsl(45 8% 40%)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Tipo</div>
