@@ -60,10 +60,10 @@ export default function ClientesClient({ clientes: initialClientes, advogados }:
 
   return (
     <div className="animate-fade-in">
-      <div style={{ marginBottom: '1.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+      <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
           <h1 className="font-display" style={{ fontSize: '1.6rem', fontWeight: '600', color: 'hsl(45 20% 92%)' }}>Clientes</h1>
-          <p style={{ color: 'hsl(45 8% 45%)', fontSize: '0.8rem', marginTop: '0.2rem' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} cadastrado{clientes.length !== 1 ? 's' : ''}</p>
+          <p style={{ color: 'hsl(45 8% 45%)', fontSize: '0.8rem', marginTop: '0.2rem' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} ativo{clientes.length !== 1 ? 's' : ''}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <div style={{ position: 'relative' }}>
@@ -74,6 +74,22 @@ export default function ClientesClient({ clientes: initialClientes, advogados }:
             <Plus size={15} /> Novo Cliente
           </button>
         </div>
+      </div>
+
+      {/* Abas Ativos / Inativos */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid hsl(var(--border))' }}>
+        <button
+          onClick={() => router.push('/clientes')}
+          style={{ padding: '0.6rem 1rem', background: 'none', border: 'none', borderBottom: '2px solid hsl(43 72% 58%)', color: 'hsl(45 20% 88%)', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}
+        >
+          Ativos
+        </button>
+        <button
+          onClick={() => router.push('/clientes/inativos')}
+          style={{ padding: '0.6rem 1rem', background: 'none', border: 'none', borderBottom: '2px solid transparent', color: 'hsl(45 8% 50%)', fontWeight: '500', fontSize: '0.85rem', cursor: 'pointer' }}
+        >
+          Inativos / Finalizados
+        </button>
       </div>
 
       <div className="card-base" style={{ overflowX: 'auto' }}>
@@ -206,7 +222,7 @@ export default function ClientesClient({ clientes: initialClientes, advogados }:
               </div>
               <h3 style={{ fontSize: '1rem', fontWeight: '600', color: 'hsl(45 20% 88%)', marginBottom: '0.5rem' }}>Excluir cliente?</h3>
               <p style={{ fontSize: '0.875rem', color: 'hsl(45 8% 55%)', marginBottom: '1.5rem' }}>
-                Tem certeza que deseja excluir <strong style={{ color: 'hsl(45 20% 80%)' }}>{confirmDelete.nome}</strong>? Esta ação não pode ser desfeita.
+                Tem certeza que deseja excluir <strong style={{ color: 'hsl(45 20% 80%)' }}>{confirmDelete.nome}</strong>? Ele será movido para a aba de inativos e poderá ser reativado depois.
               </p>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
                 <button className="btn-ghost" onClick={() => setConfirmDelete(null)}>Cancelar</button>
