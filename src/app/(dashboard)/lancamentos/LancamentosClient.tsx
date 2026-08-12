@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Search, X, ArrowUpCircle, ArrowDownCircle, CheckCircle } from 'lucide-react'
+import { Plus, Search, X, ArrowUpCircle, ArrowDownCircle, CheckCircle, Trash2 } from 'lucide-react'
 import { formatDate, formatCurrency, categoriaLancamento } from '@/lib/utils'
 
 interface Props { lancamentos: any[]; processos: any[]; advogados: any[] }
@@ -16,6 +16,8 @@ export default function LancamentosClient({ lancamentos: initial, processos, adv
   const [showModal, setShowModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState<any>(null)
+  const [loadingDelete, setLoadingDelete] = useState(false)
   const [form, setForm] = useState({
     tipo: 'entrada', categoria: '', descricao: '', valor: '',
     data_competencia: new Date().toISOString().split('T')[0],
@@ -54,6 +56,20 @@ export default function LancamentosClient({ lancamentos: initial, processos, adv
     const supabase = createClient()
     await supabase.from('lancamentos').update({ status: 'realizado', data_pagamento: new Date().toISOString() }).eq('id', id)
     setLancamentos(prev => prev.map(l => l.id === id ? { ...l, status: 'realizado', data_pagamento: new Date().toISOString() } : l))
+  }
+
+  async function handleDeletar(lancamento: any) {
+    setLoadingDelete(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('lancamentos').delete().eq('id', lancamento.id)
+    if (error) {
+      alert('Não foi possível excluir: ' + error.message)
+      setLoadingDelete(false)
+      return
+    }
+    setLancamentos(prev => prev.filter(l => l.id !== lancamento.id))
+    setConfirmDelete(null)
+    setLoadingDelete(false)
   }
 
   return (
@@ -136,12 +152,23 @@ export default function LancamentosClient({ lancamentos: initial, processos, adv
                   </span>
                 </td>
                 <td>
-                  {l.status === 'previsto' && (
-                    <button className="btn-ghost" onClick={() => darBaixa(l.id)}
-                      style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <CheckCircle size={12} /> Baixar
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                    {l.status === 'previsto' && (
+                      <button onClick={(e) => { e.stopPropagation(); darBaixa(l.id) }} className="btn-ghost"
+                        style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <CheckCircle size={12} /> Baixar
+                      </button>
+                    )}
+                    {l.status === 'cancelado' && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setConfirmDelete(l) }}
+                        title="Excluir do histórico"
+                        style={{ padding: '0.25rem 0.5rem', background: 'none', border: '1px solid hsl(0 72% 51% / 0.4)', borderRadius: '6px', cursor: 'pointer', color: 'hsl(0 72% 65%)', display: 'flex', alignItems: 'center' }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -214,6 +241,29 @@ export default function LancamentosClient({ lancamentos: initial, processos, adv
                 <button type="submit" className="btn-gold" disabled={loading}>{loading ? 'Salvando...' : 'Salvar Lançamento'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmar exclusão */}
+      {confirmDelete && (
+        <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
+          <div className="card-base" style={{ width: '100%', maxWidth: '400px', borderColor: 'hsl(0 50% 30%)' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ padding: '1.5rem', textAlign: 'center' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'hsl(0 72% 51% / 0.15)', border: '1px solid hsl(0 72% 51% / 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                <Trash2 size={20} color="hsl(0 72% 65%)" />
+              </div>
+              <h3 style={{ fontSize: '1rem', fontWeight: '600', color: 'hsl(45 20% 88%)', marginBottom: '0.5rem' }}>Excluir do histórico?</h3>
+              <p style={{ fontSize: '0.875rem', color: 'hsl(45 8% 55%)', marginBottom: '1.5rem' }}>
+                O lançamento <strong style={{ color: 'hsl(45 20% 80%)' }}>{confirmDelete.descricao}</strong> será apagado permanentemente. Esta ação não pode ser desfeita.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+                <button className="btn-ghost" onClick={() => setConfirmDelete(null)}>Cancelar</button>
+                <button onClick={() => handleDeletar(confirmDelete)} disabled={loadingDelete} style={{ padding: '0.5rem 1.25rem', background: 'hsl(0 72% 45%)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.875rem' }}>
+                  {loadingDelete ? 'Excluindo...' : 'Excluir'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
