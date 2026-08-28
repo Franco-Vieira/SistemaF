@@ -29,10 +29,14 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
     contrato_id: '', parcela_id: '', observacoes: '',
   })
 
-  // carrega contratos uma vez (usado só pra filtrar parcelas)
+  // carrega contratos uma vez (usado só pra filtrar parcelas) — com o nome do cliente junto,
+  // pra dar pra identificar de quem é cada contrato no select
   useEffect(() => {
     const supabase = createClient()
-    supabase.from('contratos').select('id, numero_contrato, processo_id').order('numero_contrato')
+    supabase.from('contratos')
+      .select('id, numero_contrato, processo_id, status, cliente:clientes(nome, nome_empresa)')
+      .eq('status', 'ativo')
+      .order('numero_contrato')
       .then(({ data }) => setContratos(data || []))
   }, [])
 
@@ -208,7 +212,11 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
                   <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Contrato (Cliente)</label>
                   <select className="input-base" value={form.contrato_id} onChange={e => handleContratoChange(e.target.value)}>
                     <option value="">Nenhum</option>
-                    {contratos.map((c: any) => <option key={c.id} value={c.id}>{c.numero_contrato}</option>)}
+                    {contratos.map((c: any) => (
+                      <option key={c.id} value={c.id}>
+                        {c.numero_contrato} — {c.cliente?.nome_empresa || c.cliente?.nome || 'cliente não identificado'}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 {form.contrato_id && (
@@ -218,7 +226,7 @@ export default function NovoLancamentoForm({ processos, advogados }: { processos
                       <option value="">{loadingParcelas ? 'Carregando...' : parcelas.length === 0 ? 'Nenhuma parcela em aberto' : 'Nenhuma'}</option>
                       {parcelas.map((p: any) => (
                         <option key={p.id} value={p.id}>
-                          Ref. {fmtVenc(p.data_vencimento)} • falta {formatCurrency(saldoParcela(p))}{p.status === 'pago_parcial' ? ' (parcial)' : p.status === 'atrasado' ? ' (atrasada)' : ''}
+                          Parcela {p.numero_parcela} • venc. {fmtVenc(p.data_vencimento)} • falta {formatCurrency(saldoParcela(p))}{p.status === 'pago_parcial' ? ' (parcial)' : p.status === 'atrasado' ? ' (atrasada)' : ''}
                         </option>
                       ))}
                     </select>
