@@ -160,7 +160,9 @@ export default function DashboardClient(props: DashboardClientProps) {
   } = props
 
   const resumoFiltrado = resumoMensal.find(r => r.mes?.startsWith(mesSelecionado))
-  const receberFiltrado = receberMensal.find(r => r.mes === mesSelecionado)
+  // match tolerante (trim + comparação por prefixo) — evita ficar zerado por qualquer
+  // diferença sutil de formatação entre o texto vindo da view e o valor selecionado
+  const receberFiltrado = receberMensal.find(r => String(r.mes || '').trim().startsWith(mesSelecionado.trim()))
 
   // ── Lista de meses do seletor: união de resumoMensal (lançamentos) + receberMensal (parcelas) ──
   // Antes só olhava lançamentos, então ficava vazio se nada tivesse sido lançado ainda,
