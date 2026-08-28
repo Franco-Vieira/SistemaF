@@ -1,9 +1,7 @@
-
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import DashboardClient from './DashboardClient'
 import DashboardAdvogado from './DashboardAdvogado'
-
 export default async function HomePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -11,12 +9,10 @@ export default async function HomePage() {
   const { data: profile } = await supabase
     .from('profiles').select('*').eq('id', user.id).single()
   if (!profile) redirect('/login')
-
   // Secretaria → painel simples sem dados financeiros
   if (profile.role === 'secretaria') {
     return <DashboardClient role="secretaria" profile={profile} />
   }
-
   // Advogado → dashboard próprio com pagamentos
   if (profile.role === 'advogado') {
     const { data: pagamentos } = await supabase
@@ -33,15 +29,17 @@ export default async function HomePage() {
       />
     )
   }
-
   // Admin → dashboard completo
-  // mês atual no fuso de Brasília (servidor Vercel roda em UTC)
+  // data/hora atual no fuso de Brasília (servidor Vercel roda em UTC)
   const mesAtual = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Sao_Paulo',
     year: 'numeric',
     month: '2-digit',
   }).format(new Date()) // ex.: "2026-07"
-
+  const hojeStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date()) // ex.: "2026-08-28"
   const [
     { data: resumoMensal },
     { data: comparativoAnual },
@@ -55,26 +53,29 @@ export default async function HomePage() {
   ] = await Promise.all([
     supabase.from('vw_resumo_mensal').select('*').order('mes', { ascending: false }).limit(12),
     supabase.from('vw_comparativo_anual').select('*').order('mes'),
-    supabase.from('alertas').select('*').eq('resolvido', false).order('created_at', { ascending: false }).limit(10),
+    supabase.from('alertas').select('*').eq('lido', false).order('created_at', { ascending: false }).limit(10),
     supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('ativo', true),
     supabase.from('processos').select('*', { count: 'exact', head: true }).eq('status', 'ativo'),
     supabase.from('parcelas').select('*', { count: 'exact', head: true }).eq('status', 'atrasado'),
     supabase.from('vw_receber_mensal').select('*').order('mes', { ascending: false }).limit(12),
     supabase.from('parcelas').select('valor_previsto, valor_pago').in('status', ['pendente', 'pago_parcial', 'atrasado']),
-    // parcelas em aberto com nome do cliente, pra virar "lembrete" no card de Alertas —
-    // não depende de nenhum lançamento ter sido feito, só olha o que está pendente de baixa
+    // Parcelas VENCIDAS (data_vencimento < hoje) e ainda não quitadas, com nome do cliente
+    // resolvido via processo (judicial) ou, na ausência de processo, direto pelo contrato (extrajudicial).
     supabase.from('parcelas')
-      .select('id, valor_previsto, valor_pago, data_vencimento, status, processo:processos(numero_processo, cliente:clientes(nome))')
+      .select(`
+        id, valor_previsto, valor_pago, data_vencimento, status,
+        processo:processos(numero_processo, cliente:clientes(nome)),
+        contrato:contratos(cliente:clientes(nome))
+      `)
       .in('status', ['pendente', 'pago_parcial', 'atrasado'])
+      .lt('data_vencimento', hojeStr)
       .order('data_vencimento', { ascending: true })
       .limit(10),
   ])
-
   const totalAReceberGeral = (parcelasEmAberto || []).reduce(
     (acc: number, p: any) => acc + (Number(p.valor_previsto) - Number(p.valor_pago || 0)),
     0
   )
-
   return (
     <DashboardClient
       role="admin"
@@ -89,7 +90,7 @@ export default async function HomePage() {
       receberMensal={receberMensal || []}
       totalAReceberGeral={totalAReceberGeral}
       // cast: o types.ts do projeto não tem os relacionamentos de FK bem tipados,
-      // então o Supabase infere "processo"/"cliente" como array em vez de objeto único.
+      // então o Supabase infere "processo"/"contrato"/"cliente" como array em vez de objeto único.
       // O dado real vem como objeto (many-to-one), o DashboardClient já lê assim.
       cobrancasPendentes={(cobrancasPendentes || []) as any}
     />
