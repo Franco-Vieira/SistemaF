@@ -4,20 +4,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft } from 'lucide-react'
 
-// Calcula a data de vencimento da 1ª parcela de um contrato Mensal.
-function primeiroVencimentoMensal(dataInicio: string, diaVencimento: number): string {
-  const [ano, mes, dia] = dataInicio.split('-').map(Number)
-  let anoAlvo = ano
-  let mesAlvo = mes
-  if (dia > diaVencimento) {
-    mesAlvo += 1
-    if (mesAlvo > 12) { mesAlvo = 1; anoAlvo += 1 }
-  }
-  const ultimoDiaDoMes = new Date(anoAlvo, mesAlvo, 0).getDate()
-  const diaFinal = Math.min(diaVencimento, ultimoDiaDoMes)
-  return `${anoAlvo}-${String(mesAlvo).padStart(2, '0')}-${String(diaFinal).padStart(2, '0')}`
-}
-
 interface Cliente { id: string; nome: string; nome_empresa: string | null; tipo_processo: string | null }
 interface Processo { id: string; numero_processo: string; titulo: string; cliente_id: string }
 
@@ -33,6 +19,7 @@ export default function NovoContratoForm({ clientes, processos }: { clientes: Cl
 
   const isMensal = form.tipo === 'mensalidade'
   const isFixo = form.tipo === 'avista'
+  const qtdParcelasFixo = Number(form.numero_parcelas) || 1
 
   const clienteSelecionado = useMemo(
     () => clientes.find(c => c.id === form.cliente_id) || null,
@@ -50,12 +37,19 @@ export default function NovoContratoForm({ clientes, processos }: { clientes: Cl
     setForm(p => ({ ...p, cliente_id: clienteId, processo_id: '' }))
   }
 
+  // Ao trocar a modalidade, reseta a quantidade de parcelas pro padrão de cada uma
+  function handleTipoChange(tipo: string) {
+    setForm(p => ({ ...p, tipo, numero_parcelas: '1' }))
+  }
+
   async function handleSalvar(e: React.FormEvent) {
     e.preventDefault()
     setErro('')
 
     if (!form.cliente_id) { setErro('Selecione um cliente.'); return }
     if (isJudicial && !form.processo_id) { setErro('Este cliente é Judicial: selecione o processo vinculado ao contrato.'); return }
+    if (isMensal && (!form.numero_parcelas || Number(form.numero_parcelas) < 1)) { setErro('Informe a duração em meses.'); return }
+    if (isFixo && form.numero_parcelas && Number(form.numero_parcelas) < 1) { setErro('Número de parcelas inválido.'); return }
 
     setLoading(true)
     const supabase = createClient()
@@ -71,28 +65,18 @@ export default function NovoContratoForm({ clientes, processos }: { clientes: Cl
       observacoes: form.observacoes || null,
       dia_vencimento: isMensal ? Number(form.dia_vencimento) : null,
       data_vencimento_fixo: isFixo ? form.data_vencimento_fixo : null,
-      numero_parcelas: isMensal ? Number(form.numero_parcelas) : 1,
+      numero_parcelas: Number(form.numero_parcelas) || 1,
     }
 
-    const { data: contrato, error } = await supabase.from('contratos').insert(payload).select('id, processo_id').single()
+    const { data: contrato, error } = await supabase.from('contratos').insert(payload).select('id').single()
     if (error) { setErro(error.message); setLoading(false); return }
 
-    // ── Gera a 1ª parcela do contrato (o "a receber" começa a existir aqui) ──
-    const dataVencimentoParcela1 = isFixo
-      ? form.data_vencimento_fixo
-      : primeiroVencimentoMensal(form.data_inicio, Number(form.dia_vencimento))
-
-    const { error: errParcela } = await supabase.from('parcelas').insert({
-      contrato_id: contrato.id,
-      processo_id: contrato.processo_id, // null quando extrajudicial — coluna já aceita null
-      numero_parcela: 1,
-      valor_previsto: Number(form.valor_total),
-      valor_pago: 0,
-      data_vencimento: dataVencimentoParcela1,
-      status: 'pendente',
-    })
-    if (errParcela) {
-      setErro('Contrato salvo, mas houve erro ao gerar a 1ª parcela: ' + errParcela.message)
+    // ── Gera as parcelas do contrato via função do banco ──
+    // Mensal: gera todas as N mensalidades de uma vez (valor cheio em cada uma).
+    // Fixo: se numero_parcelas > 1, divide o valor_total em N parcelas; se 1, gera parcela única.
+    const { error: errParcelas } = await supabase.rpc('gerar_parcelas', { contrato_id: contrato.id })
+    if (errParcelas) {
+      setErro('Contrato salvo, mas houve erro ao gerar as parcelas: ' + errParcelas.message)
       setLoading(false)
       return
     }
@@ -121,7 +105,7 @@ export default function NovoContratoForm({ clientes, processos }: { clientes: Cl
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Modalidade *</label>
-              <select className="input-base" value={form.tipo} onChange={e => setForm(p => ({ ...p, tipo: e.target.value }))}>
+              <select className="input-base" value={form.tipo} onChange={e => handleTipoChange(e.target.value)}>
                 <option value="mensalidade">Mensal</option>
                 <option value="avista">Fixo</option>
               </select>
@@ -167,15 +151,30 @@ export default function NovoContratoForm({ clientes, processos }: { clientes: Cl
 
             <div>
               <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {isMensal ? 'Valor Mensal *' : 'Valor Fixo *'}
+                {isMensal ? 'Valor Mensal *' : 'Valor Total *'}
               </label>
               <input className="input-base" type="number" step="0.01" min="0" required value={form.valor_total} onChange={e => setForm(p => ({ ...p, valor_total: e.target.value }))} placeholder="R$ 0,00" />
+              {isFixo && qtdParcelasFixo > 1 && form.valor_total && (
+                <p style={{ fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginTop: '0.35rem' }}>
+                  {qtdParcelasFixo}x de R$ {(Number(form.valor_total) / qtdParcelasFixo).toFixed(2)}
+                </p>
+              )}
             </div>
 
             {isMensal && (
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Duração (meses) *</label>
                 <input className="input-base" type="number" min="1" required value={form.numero_parcelas} onChange={e => setForm(p => ({ ...p, numero_parcelas: e.target.value }))} placeholder="Ex: 12" />
+              </div>
+            )}
+
+            {isFixo && (
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Número de Parcelas</label>
+                <input className="input-base" type="number" min="1" value={form.numero_parcelas} onChange={e => setForm(p => ({ ...p, numero_parcelas: e.target.value }))} placeholder="1" />
+                <p style={{ fontSize: '0.7rem', color: 'hsl(45 8% 45%)', marginTop: '0.35rem' }}>
+                  Deixe 1 para pagamento único. Acima disso, o valor é dividido igualmente, com vencimento mensal a partir da data abaixo.
+                </p>
               </div>
             )}
 
@@ -193,7 +192,9 @@ export default function NovoContratoForm({ clientes, processos }: { clientes: Cl
 
             {isFixo && (
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Data de Vencimento *</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'hsl(45 8% 50%)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {qtdParcelasFixo > 1 ? '1º Vencimento *' : 'Data de Vencimento *'}
+                </label>
                 <input className="input-base" type="date" required value={form.data_vencimento_fixo} onChange={e => setForm(p => ({ ...p, data_vencimento_fixo: e.target.value }))} />
               </div>
             )}
