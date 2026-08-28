@@ -2,8 +2,10 @@
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
-import { ArrowLeft, ArrowUpCircle, ArrowDownCircle, CheckCircle, Calendar, Tag, DollarSign, FileText, User, CreditCard, AlignLeft, RotateCcw } from 'lucide-react'
+import { ArrowLeft, ArrowUpCircle, ArrowDownCircle, CheckCircle, Calendar, Tag, DollarSign, FileText, User, CreditCard, AlignLeft, RotateCcw, Receipt } from 'lucide-react'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
+
+const SELECT_COMPLETO = '*, processo:processos(id, numero_processo, titulo, cliente:clientes(nome)), advogado:profiles!advogado_id(id, nome), parcela:parcelas(numero_parcela, contrato:contratos(numero_contrato, cliente:clientes(nome)))'
 
 export default function LancamentoDetalhe({ lancamento: inicial, perspectiva = 'admin' }: { lancamento: any, perspectiva?: 'admin' | 'advogado' }) {
   const router = useRouter()
@@ -13,6 +15,9 @@ export default function LancamentoDetalhe({ lancamento: inicial, perspectiva = '
   // Para o advogado, saída do escritório = entrada para ele
   const tipoOriginal = lancamento.tipo
   const isEntrada = perspectiva === 'advogado' ? true : tipoOriginal === 'entrada'
+
+  // nome do cliente: vem do processo quando é judicial, ou via parcela -> contrato quando é extrajudicial
+  const nomeCliente = lancamento.processo?.cliente?.nome || lancamento.parcela?.contrato?.cliente?.nome
 
   // Aplica baixa na parcela vinculada (soma o valor; quita ou deixa parcial)
   async function aplicarBaixaParcela(supabase: any, lanc: any, userId?: string) {
@@ -63,7 +68,7 @@ export default function LancamentoDetalhe({ lancamento: inicial, perspectiva = '
       .from('lancamentos')
       .update({ status: 'realizado', data_pagamento: new Date().toISOString() })
       .eq('id', lancamento.id)
-      .select('*, processo:processos(id, numero_processo, titulo, cliente:clientes(nome)), advogado:profiles!advogado_id(id, nome)')
+      .select(SELECT_COMPLETO)
       .single()
 
     if (error) { setErro(error.message); setLoading(false); return }
@@ -90,7 +95,7 @@ export default function LancamentoDetalhe({ lancamento: inicial, perspectiva = '
       .from('lancamentos')
       .update({ status: 'cancelado' })
       .eq('id', lancamento.id)
-      .select('*, processo:processos(id, numero_processo, titulo, cliente:clientes(nome)), advogado:profiles!advogado_id(id, nome)')
+      .select(SELECT_COMPLETO)
       .single()
 
     if (error) { setErro(error.message); setLoading(false); return }
@@ -140,6 +145,9 @@ export default function LancamentoDetalhe({ lancamento: inicial, perspectiva = '
         {/* Campos */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
           <Campo icon={<AlignLeft size={14} />} label="Descrição" valor={lancamento.descricao} fullWidth />
+          {nomeCliente && (
+            <Campo icon={<User size={14} />} label="Cliente" valor={nomeCliente} />
+          )}
           <Campo icon={<Tag size={14} />} label="Categoria" valor={lancamento.categoria} />
           <Campo icon={<Calendar size={14} />} label="Data Competência" valor={formatDate(lancamento.data_competencia)} />
           {lancamento.data_pagamento && (
@@ -151,8 +159,8 @@ export default function LancamentoDetalhe({ lancamento: inicial, perspectiva = '
           {lancamento.processo && (
             <Campo icon={<FileText size={14} />} label="Processo" valor={`${lancamento.processo.numero_processo} — ${lancamento.processo.titulo}`} fullWidth />
           )}
-          {lancamento.processo?.cliente && (
-            <Campo icon={<User size={14} />} label="Cliente" valor={lancamento.processo.cliente.nome} />
+          {lancamento.parcela && (
+            <Campo icon={<Receipt size={14} />} label="Referente a" valor={`${lancamento.parcela.contrato?.numero_contrato || 'Contrato'} — Parcela ${lancamento.parcela.numero_parcela}`} fullWidth />
           )}
           {lancamento.advogado && (
             <Campo icon={<User size={14} />} label="Advogado (Repasse)" valor={lancamento.advogado.nome} />
