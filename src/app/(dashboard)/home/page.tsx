@@ -57,7 +57,10 @@ export default async function HomePage() {
     supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('ativo', true),
     supabase.from('processos').select('*', { count: 'exact', head: true }).eq('status', 'ativo'),
     supabase.from('parcelas').select('*', { count: 'exact', head: true }).eq('status', 'atrasado'),
-    supabase.from('vw_receber_mensal').select('*').order('mes', { ascending: false }).limit(12),
+    // Sem limit: com contratos Mensal de longa duração o cronograma pode se estender
+    // por vários anos (ex.: 29 meses), e um limit(12) ordenado desc cortava o mês atual
+    // fora da janela retornada, sempre pegando só os meses mais distantes no futuro.
+    supabase.from('vw_receber_mensal').select('*').order('mes', { ascending: false }),
     supabase.from('parcelas').select('valor_previsto, valor_pago').in('status', ['pendente', 'pago_parcial', 'atrasado']),
     // Parcelas VENCIDAS (data_vencimento < hoje) e ainda não quitadas, com nome do cliente
     // resolvido via processo (judicial) ou, na ausência de processo, direto pelo contrato (extrajudicial).
