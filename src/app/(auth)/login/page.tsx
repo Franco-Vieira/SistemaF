@@ -134,7 +134,7 @@ export default function LoginPage() {
               Franco & Vieira
             </h1>
             <p style={{ fontSize: '0.8rem', color: 'hsl(45 8% 40%)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-              Advogados & Associados
+              Advogados
             </p>
             <div style={{
               width: '40px',
