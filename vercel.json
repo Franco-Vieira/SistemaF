@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/virada-mes",
       "schedule": "0 6 1 * *"
+    },
+    {
+      "path": "/api/cron/verificar-vencidas",
+      "schedule": "0 7 * * *"
     }
   ]
 }
