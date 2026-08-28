@@ -8,6 +8,12 @@ import { formatDate, formatCurrency, categoriaLancamento } from '@/lib/utils'
 
 interface Props { lancamentos: any[]; processos: any[]; advogados: any[] }
 
+// Nome do cliente: prioridade pro vínculo via processo (judicial); na ausência,
+// resolve via parcela -> contrato -> cliente (fluxo extrajudicial).
+function nomeClienteDoLancamento(l: any): string {
+  return l.processo?.cliente?.nome || l.parcela?.contrato?.cliente?.nome || '—'
+}
+
 export default function LancamentosClient({ lancamentos: initial, processos, advogados }: Props) {
   const router = useRouter()
   const [lancamentos, setLancamentos] = useState(initial)
@@ -44,7 +50,7 @@ export default function LancamentosClient({ lancamentos: initial, processos, adv
     if (!payload.forma_pagamento) delete payload.forma_pagamento
     if (payload.status === 'realizado') payload.data_pagamento = new Date().toISOString()
 
-    const { data, error } = await supabase.from('lancamentos').insert(payload).select('*, processo:processos(numero_processo, titulo), advogado:profiles!advogado_id(nome)').single()
+    const { data, error } = await supabase.from('lancamentos').insert(payload).select('*, processo:processos(numero_processo, titulo, cliente:clientes(nome)), advogado:profiles!advogado_id(nome), parcela:parcelas(numero_parcela, contrato:contratos(cliente:clientes(nome)))').single()
     if (error) { setErro(error.message); setLoading(false); return }
     setLancamentos(prev => [data, ...prev])
     setShowModal(false)
@@ -122,6 +128,7 @@ export default function LancamentosClient({ lancamentos: initial, processos, adv
               <th>Tipo</th>
               <th>Data</th>
               <th>Descrição</th>
+              <th>Cliente</th>
               <th>Categoria</th>
               <th>Processo</th>
               <th>Valor</th>
@@ -131,7 +138,7 @@ export default function LancamentosClient({ lancamentos: initial, processos, adv
           </thead>
           <tbody>
             {filtrados.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'hsl(45 8% 40%)', padding: '3rem' }}>Nenhum lançamento encontrado.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'hsl(45 8% 40%)', padding: '3rem' }}>Nenhum lançamento encontrado.</td></tr>
             ) : filtrados.map(l => (
               <tr key={l.id} onClick={() => router.push(`/lancamentos/${l.id}`)} style={{ cursor: 'pointer' }}>
                 <td>
@@ -141,6 +148,7 @@ export default function LancamentosClient({ lancamentos: initial, processos, adv
                 </td>
                 <td style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'hsl(45 8% 60%)' }}>{formatDate(l.data_competencia)}</td>
                 <td style={{ fontWeight: '500', maxWidth: '200px' }}>{l.descricao}</td>
+                <td style={{ color: 'hsl(45 20% 85%)', fontSize: '0.8rem' }}>{nomeClienteDoLancamento(l)}</td>
                 <td style={{ color: 'hsl(45 8% 55%)', fontSize: '0.8rem' }}>{l.categoria}</td>
                 <td style={{ color: 'hsl(43 72% 58%)', fontFamily: 'monospace', fontSize: '0.8rem' }}>{l.processo?.numero_processo || '—'}</td>
                 <td style={{ fontWeight: '600', color: l.tipo === 'entrada' ? 'hsl(142 60% 55%)' : 'hsl(0 72% 65%)' }}>
