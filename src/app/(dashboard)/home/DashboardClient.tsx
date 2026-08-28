@@ -27,6 +27,7 @@ interface CobrancaPendente {
   data_vencimento: string
   status: string
   processo?: { numero_processo: string, cliente?: { nome: string } }
+  contrato?: { cliente?: { nome: string } }
 }
 
 interface DashboardClientProps {
@@ -312,7 +313,8 @@ export default function DashboardClient(props: DashboardClientProps) {
                 {cobrancasPendentes.map((c) => {
                   const saldo = Number(c.valor_previsto) - Number(c.valor_pago || 0)
                   const atrasada = c.data_vencimento < hoje
-                  const nomeCliente = c.processo?.cliente?.nome || 'Cliente não vinculado'
+                  // nome resolvido por processo (judicial) ou, na ausência, direto pelo contrato (extrajudicial)
+                  const nomeCliente = c.processo?.cliente?.nome || c.contrato?.cliente?.nome || 'Cliente não vinculado'
                   return (
                     <div key={c.id} style={{
                       padding: '0.625rem 0.75rem',
