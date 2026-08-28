@@ -18,5 +18,10 @@ export default async function EditarContratoPage({ params }: { params: Promise<{
     .select('id, numero_processo, titulo, cliente_id')
     .eq('cliente_id', contrato.cliente_id)
     .order('numero_processo')
-  return <EditarContratoForm contrato={contrato} processos={processos || []} />
+  const { data: parcelas } = await supabase
+    .from('parcelas')
+    .select('id, numero_parcela, status')
+    .eq('contrato_id', id)
+    .order('numero_parcela')
+  return <EditarContratoForm contrato={contrato} processos={processos || []} parcelas={parcelas || []} />
 }
